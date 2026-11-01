@@ -113,7 +113,11 @@ def main():
         futs = [ex.submit(run_batch, b, prompt_text, args, d) for b in batches]
         try:
             for i, f in enumerate(as_completed(futs), 1):
-                c, p, m, u = f.result()
+                try:
+                    c, p, m, u = f.result()
+                except RuntimeError as e:
+                    print(f"  batch {i}/{len(batches)} failed, will retry on the next run: {str(e)[:160]}", flush=True)
+                    continue
                 n_c, n_p, n_miss = n_c + c, n_p + p, n_miss + m
                 tok_in += u.get("input_tokens", 0) + u.get("cache_read_input_tokens", 0) + u.get("cache_creation_input_tokens", 0)
                 tok_out += u.get("output_tokens", 0)

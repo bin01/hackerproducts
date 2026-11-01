@@ -87,6 +87,7 @@ def main():
         if v:
             verdict = [{"text": c["text"], "cites": [quote_obj(by_id[i]) for i in c["cites"] if i in by_id]}
                        for c in json.loads(v["clauses"])]
+        cited = {q["id"] for c in verdict or [] for q in c["cites"]}
         th = {"praise": [], "caveat": []}
         for t in themes[pid]:
             th[t["polarity"]].append({"label": t["label"], "summary": t["summary"],
@@ -129,14 +130,14 @@ def main():
             "makers": [quote_obj(m) for m in makers[:6]],
             "threads": [{"url": hn(sid), "title": titles[sid] or f"item {sid}", "mentions": n} for sid, n in threads.most_common(6)],
             "sentiment_by_month": {mo: sbm.get(mo, {}) for mo in MONTHS},
-            "quotes": [quote_obj(m) for m in ms[:40]],
+            "quotes": [quote_obj(m) for m in ms if m in ms[:40] or m["id"] in cited],
         }
         (DATA / "products" / f"{p['slug']}.json").write_text(json.dumps(detail))
 
     summaries.sort(key=lambda s: -s["score"])
     cat_counts = Counter(s["category"] for s in summaries if s["listed"])
     stats = {
-        "comments": duckdb.sql(f"SELECT count(*) FROM read_parquet('{ROOT}/data/raw/month=*/*.parquet', union_by_name=true) "
+        "comments": duckdb.sql(f"SELECT count(DISTINCT id) FROM read_parquet('{ROOT}/data/raw/month=*/*.parquet', union_by_name=true) "
                                "WHERE type = 2 AND time >= '2025-11-01'").fetchall()[0][0],
         "candidates": duckdb.sql(f"SELECT count(*) FROM read_parquet('{ROOT}/data/candidates.parquet')").fetchall()[0][0],
         "labeled": con.execute("SELECT count(*) FROM hn_item").fetchone()[0],

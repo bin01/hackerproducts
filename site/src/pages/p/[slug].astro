@@ -41,7 +41,7 @@ const cites = (p.verdict || []).map((c: any) => c.cites.map((q: any) => ({ ...q,
       <p class="empty" style="margin-top:16px">{p.recommenders < 5 ? "No written verdict: fewer than 5 people recommend it so far." : "No written verdict yet."} The quotes below are what commenters said.</p>
     )}
 
-    <div class="strip">
+    <div class="strip" data-pagefind-ignore>
       <div class="stat"><b>{p.recommenders}</b><span>distinct recommenders</span></div>
       <div class="stat"><b>{p.commenters}</b><span>people with a stance</span></div>
       {p.warners > 0 && <div class="stat"><b style="color:var(--warn)">{p.warners}</b><span>warn against it</span></div>}

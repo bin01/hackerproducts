@@ -22,16 +22,24 @@ thread (software only, one year of comments, no Person view). This file tracks w
 - No account-age filter (the dump has no user creation dates).
 - 24 to 31 Aug 2026 missing between the dump's end and the Algolia months.
 - Gold reference is Opus, not human labels.
+- Only the 25,000 highest-priority of 347,262 candidates are labeled; `make extract TOP=50000` extends it.
+- Verdicts for the top 160 products; `make synth` with `--limit` raised covers the other 129 with 5+ recommenders.
+- 8 names wait in alias_review; no karma band (not in the dump).
+
+## Results (1 Nov 2026)
+- Gold set (500 comments, Opus reference): Haiku P 73.9% R 84.7% F1 78.9%; Sonnet P 89.9% R 85.8% F1 87.8%. Sonnet chosen.
+- 3,768,623 comments -> 347,262 candidates -> 25,000 labeled (Sonnet low) + 798 hard cases (Sonnet medium).
+- 22,431 mentions, 9,574 products, 574 with 3+ recommenders, 1,584 product pages, 160 Opus verdicts, 1,964 citations all resolving.
 
 ## Todo
 - [x] Project scaffold (git, uv)
 - [x] Ingest
 - [x] Prefilter
-- [ ] Gold set labeling + report
-- [ ] Bulk extraction
-- [ ] Hard-case re-run
-- [ ] Resolve
-- [ ] Score
-- [ ] Synthesis
-- [ ] Publish + Astro site + Pagefind
-- [ ] Run locally, report URL
+- [x] Gold set labeling + report
+- [x] Bulk extraction
+- [x] Hard-case re-run
+- [x] Resolve
+- [x] Score
+- [x] Synthesis
+- [x] Publish + Astro site + Pagefind
+- [x] Run locally, report URL

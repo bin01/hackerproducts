@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DB = ROOT / "data" / "hp.sqlite"
 EXTRACT = ROOT / "data" / "extract" / "extract_v1"
 MERGES = ROOT / "data" / "resolve" / "merges_v1.jsonl"
+GROUPS = ROOT / "data" / "resolve" / "groups_v1.json"
 CANDS = ROOT / "data" / "candidates.parquet"
 
 GENERIC_HOSTS = {"google.com", "apple.com", "microsoft.com", "amazon.com", "github.com", "gitlab.com",
@@ -34,7 +35,6 @@ DROP_CATS = re.compile(r"hardware|\bbooks?\b|device|e-reader|laptop|phone|keyboa
 CATS = [
     ("ai-coding", "AI coding tools", ["ai coding", "coding assistant", "coding agent", "code assistant", "code agent", "agentic"]),
     ("ai", "AI models and assistants", ["ai model", "llm", "ai assistant", "chatbot", "language model", "ai", "inference", "speech", "transcription"]),
-    ("editors", "Editors and IDEs", ["editor", "ide"]),
     ("terminal", "Terminal and shell", ["terminal", "shell", "cli", "command-line", "command line"]),
     ("databases", "Databases", ["database", "db", "sql", "datastore", "key-value", "vector store"]),
     ("git", "Git and code hosting", ["version control", "git", "code hosting", "code review", "forge"]),
@@ -53,6 +53,7 @@ CATS = [
     ("files", "Files, sync and backup", ["backup", "sync", "storage", "file", "file manager", "cloud storage"]),
     ("media", "Media and creative", ["music", "audio", "video", "photo", "image", "design", "media", "podcast", "reader", "e-book", "ebook", "rss", "graphics", "3d", "cad"]),
     ("finance", "Finance", ["finance", "budget", "budgeting", "accounting", "payment", "banking"]),
+    ("editors", "Editors and IDEs", ["editor", "ide"]),
 ]
 
 
@@ -176,6 +177,36 @@ def sonnet_merges(clusters):
     return [(a, b) for (a, b), same in cache.items() if same and a in clusters and b in clusters]
 
 
+def sonnet_groups(clusters):
+    """One pass over all names with 2+ commenters: Sonnet lists duplicate groups and a canonical name.
+    Catches variants a prefix check misses (VS Code / Visual Studio Code). Cached by the name list."""
+    import hashlib
+    big = sorted((k for k, c in clusters.items() if c["users"] >= 2), key=lambda k: clusters[k]["name"].lower())
+    h = hashlib.sha1("\n".join(big).encode()).hexdigest()[:12]
+    cache = json.loads(GROUPS.read_text()) if GROUPS.exists() else {}
+    if h not in cache:
+        lines = [f"{n}. {clusters[k]['name']} ({clusters[k]['cat_raw']})" for n, k in enumerate(big)]
+        prompt = ("Below is a numbered list of software names extracted from Hacker News comments, with a category. "
+                  "Find groups of entries that refer to the SAME product: spelling variants, abbreviations (Postgres / "
+                  "PostgreSQL, VS Code / Visual Studio Code), and version numbers of the same product or model (Claude "
+                  "Opus 4.8 / Opus / Claude Opus). Keep apart different products from one vendor or family (Claude vs "
+                  "Claude Code, VS Code vs Visual Studio, Codex vs GPT-5), different tiers (DeepSeek V4 Flash vs DeepSeek "
+                  "V4 Pro), and same-named but unrelated products. Output one JSON object per group of 2 or more, one per "
+                  "line: {\"same\": [<numbers>], \"name\": \"<canonical product name>\"}. Output nothing for "
+                  "entries without duplicates. No other text.\n\n" + "\n".join(lines))
+        text, _ = llm.run(prompt, model="sonnet", effort="low", timeout=1800)
+        groups = []
+        for o in llm.parse_jsonl(text):
+            idx = [int(x) for x in o.get("same") or [] if str(x).isdigit() and int(x) < len(big)]
+            if len(idx) >= 2:
+                groups.append({"keys": [big[i] for i in idx], "name": o.get("name") or ""})
+        cache[h] = groups
+        GROUPS.parent.mkdir(parents=True, exist_ok=True)
+        GROUPS.write_text(json.dumps(cache, indent=1))
+        print(f"  sonnet grouping: {len(big)} names, {len(groups)} duplicate groups", flush=True)
+    return cache[h]
+
+
 def slugify(name, used):
     s = re.sub(r"[^a-z0-9]+", "-", name.lower().replace("+", "plus").replace("#", "sharp")).strip("-") or "product"
     base, n = s, 2
@@ -241,6 +272,13 @@ def main():
 
     for a, b in sonnet_merges(clusters_now()):
         uf.union(a, b)
+    canon = {}
+    for g in sonnet_groups(clusters_now()):
+        for k in g["keys"][1:]:
+            uf.union(g["keys"][0], k)
+        if g["name"]:
+            canon[tuple(g["keys"])] = g["name"]
+    canon_by_root = {uf.find(keys[0]): name for keys, name in canon.items()}
 
     groups = defaultdict(list)
     for m in raw:
@@ -258,7 +296,7 @@ def main():
     n_review = 0
     for gi, (gk, ms) in enumerate(sorted(groups.items(), key=lambda kv: -len({m["by"] for m in kv[1]}))):
         pid = gi + 1
-        name = Counter(m["name"] for m in ms).most_common(1)[0][0]
+        name = canon_by_root.get(gk) or Counter(m["name"] for m in ms).most_common(1)[0][0]
         domains = Counter(m["dk"] for m in ms if m["dk"])
         dk = domains.most_common(1)[0][0] if domains else None
         repo = dk[5:] if dk and dk.startswith("repo:") else None
