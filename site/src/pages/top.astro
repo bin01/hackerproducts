@@ -6,7 +6,7 @@ import { listed } from "../lib/data";
 ---
 <Base title="All-time top" active="top">
   <h1 style="font-size:18px">All-time top</h1>
-  <p class="lede">Ranked by distinct recommenders (one vote per HN user), weighted by recency, minus people who warn against it. Comments by a product's own makers don't count.</p>
+  <p class="lede">Ranked by distinct recommenders: one vote per HN user, ties broken by recency. Warnings are shown beside each product, and comments by a product's own makers don't count.</p>
   <ListTools title="All-time top" items={listed} json="/export/products.json" />
   <ProductList items={listed} />
 </Base>

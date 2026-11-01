@@ -36,6 +36,8 @@ synth:
 
 publish:
 	uv run pipeline/publish.py
+	uv run pipeline/icons.py
+	uv run pipeline/publish.py
 
 site:
 	cd site && npm run build

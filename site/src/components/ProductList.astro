@@ -1,6 +1,7 @@
 ---
 import type { Summary } from "../lib/data";
 import { months, monthLabel } from "../lib/data";
+import Icon from "./Icon.astro";
 
 interface Props { items: Summary[]; start?: number; showCategory?: boolean; metric?: "score" | "rising" }
 const { items, start = 1, showCategory = true, metric = "score" } = Astro.props;
@@ -16,7 +17,7 @@ const sparkMax = (p: Summary) => Math.max(1, ...p.spark);
     <li class="row" data-nav>
       <span class="rank">{start + i}.</span>
       <div>
-        <a class="name" href={`/p/${p.slug}/`}>{p.name}</a>
+        <a class="name" href={`/p/${p.slug}/`}><Icon p={p} />{p.name}</a>
         <span class="meta">
           {" "}· {p.recommenders} recommender{p.recommenders === 1 ? "" : "s"}
           {p.warners > 0 && <> · {p.warners} warn{p.warners === 1 ? "s" : ""}</>}

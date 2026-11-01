@@ -84,6 +84,7 @@ def main():
             "loved": [t["label"] for t in themes[pid] if t["polarity"] == "praise"][:2],
             "caveat": next((t["label"] for t in themes[pid] if t["polarity"] == "caveat"), ""),
             "short_quote": best["reason_quote"] if best else "",
+            "icon": (SITE / "public" / "icons" / f"{p['slug']}.ico").exists(),
         }
         summaries.append(summary)
 
@@ -139,7 +140,8 @@ def main():
         }
         (DATA / "products" / f"{p['slug']}.json").write_text(json.dumps(detail))
 
-    summaries.sort(key=lambda s: -s["score"])
+    # Lists rank by the number they show: distinct recommenders, ties broken by the recency-weighted score.
+    summaries.sort(key=lambda s: (-s["recommenders"], -s["score"]))
     home = home_data(con, summaries, mentions, products, themes, verdicts)
     cat_counts = Counter(s["category"] for s in summaries if s["listed"])
     stats = {
