@@ -1,0 +1,14 @@
+{
+  "name": "hackerproducts-site",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && pagefind --site dist",
+    "preview": "astro preview --port 4321"
+  },
+  "dependencies": {
+    "astro": "^7.4.4",
+    "pagefind": "^1.6.0"
+  }
+}

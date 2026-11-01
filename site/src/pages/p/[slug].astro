@@ -1,0 +1,144 @@
+---
+import Base from "../../layouts/Base.astro";
+import Quote from "../../components/Quote.astro";
+import { products, product, monthLabel, fmtDate } from "../../lib/data";
+
+export function getStaticPaths() {
+  return products.map((p) => ({ params: { slug: p.slug } }));
+}
+const p = product(Astro.params.slug!);
+const months = Object.keys(p.sentiment_by_month);
+const peak = Math.max(1, ...months.map((m) => Object.values(p.sentiment_by_month[m] as Record<string, number>).reduce((a, b) => a + b, 0)));
+const stances = ["recommend", "neutral", "compare", "warn"] as const;
+const host = p.official_url ? p.official_url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : "";
+let n = 0;
+const cites = (p.verdict || []).map((c: any) => c.cites.map((q: any) => ({ ...q, n: ++n })));
+---
+<Base title={p.name} description={p.why || `What Hacker News commenters say about ${p.name}.`}>
+  <article data-pagefind-body>
+    <div class="ph">
+      <div class="mono" aria-hidden="true">{p.name.slice(0, 1).toUpperCase()}</div>
+      <div>
+        <h1 data-pagefind-meta="title">{p.name}</h1>
+        {p.description && <p>{p.description}</p>}
+        <div class="facts">
+          <a href={`/c/${p.category}/`}>{p.category_name}</a>
+          {p.pricing && p.pricing !== "unknown" && <span>{p.pricing}</span>}
+          {host && <a href={p.official_url} rel="nofollow noopener">{host} ↗</a>}
+          {p.aliases.length > 1 && <span>also written {p.aliases.slice(1, 4).join(", ")}</span>}
+        </div>
+      </div>
+    </div>
+
+    {p.verdict ? (
+      <div class="verdict">
+        <span class="label">The HN verdict</span>
+        {p.verdict.map((c: any, i: number) => (
+          <>{c.text}<sup>{cites[i].map((q: any) => <a href={`#q${q.id}`} title={`${q.by}, ${q.date}: ${q.quote || q.excerpt.slice(0, 120)}`}>[{q.n}]</a>)}</sup></>
+        ))}
+      </div>
+    ) : (
+      <p class="empty" style="margin-top:16px">{p.recommenders < 5 ? "No written verdict: fewer than 5 people recommend it so far." : "No written verdict yet."} The quotes below are what commenters said.</p>
+    )}
+
+    <div class="strip">
+      <div class="stat"><b>{p.recommenders}</b><span>distinct recommenders</span></div>
+      <div class="stat"><b>{p.commenters}</b><span>people with a stance</span></div>
+      {p.warners > 0 && <div class="stat"><b style="color:var(--warn)">{p.warners}</b><span>warn against it</span></div>}
+      <div class="stat"><b style="font-size:13px">{fmtDate(p.first)}</b><span>first mention in window</span></div>
+      <div class="stat"><b style="font-size:13px">{fmtDate(p.latest)}</b><span>latest mention</span></div>
+      <div>
+        <div class="months" aria-label="People with a stance per month, by stance">
+          {months.map((m) => {
+            const v = p.sentiment_by_month[m] || {};
+            return (
+              <div class="m" title={`${monthLabel(m)}: ${stances.map((s) => `${v[s] || 0} ${s}`).join(", ")}`}>
+                {stances.map((s) => v[s] ? <span class={`s-${s}`} style={`height:${(100 * v[s]) / peak}%`} /> : null)}
+              </div>
+            );
+          })}
+        </div>
+        <div class="legend">
+          <span>{monthLabel(months[0])} to {monthLabel(months[months.length - 1])}</span>
+          {stances.map((s) => <span><i class={`s-${s}`} />{s}</span>)}
+        </div>
+      </div>
+    </div>
+
+    {p.compared.length > 0 && (
+      <div class="chips" aria-label="Often compared with">
+        <span class="muted small" style="align-self:center">Often compared with</span>
+        {p.compared.map((c: any) => (
+          <a class="chip" href={`/p/${c.slug}/`} title={`${c.co} comments mention both${c.switched_from ? `; ${c.switched_from} switched from ${c.name}` : ""}${c.switched_to ? `; ${c.switched_to} switched to ${c.name}` : ""}`}>
+            {c.name}{c.switched_from > 0 && <span class="muted">←{c.switched_from}</span>}{c.switched_to > 0 && <span class="muted">→{c.switched_to}</span>}
+          </a>
+        ))}
+      </div>
+    )}
+    {(p.tags.length > 0 || p.use_cases.length > 0) && (
+      <div class="chips">
+        <span class="muted small" style="align-self:center">Used for</span>
+        {p.tags.map((t: string) => <span class="chip">{t}</span>)}
+        {p.use_cases.slice(0, p.tags.length ? 3 : 6).map((t: string) => <span class="chip muted">{t}</span>)}
+      </div>
+    )}
+
+    <div class="cols">
+      <section>
+        <h2>Why people recommend it</h2>
+        {p.praise.length ? p.praise.map((t: any) => (
+          <div class="theme">
+            {t.label && <h3>{t.label}</h3>}
+            {t.summary && <p>{t.summary}</p>}
+            {t.quotes.map((q: any) => <Quote q={q} />)}
+          </div>
+        )) : <p class="empty">No clear praise yet.</p>}
+      </section>
+      <section>
+        <h2>Caveats and dissent</h2>
+        {p.caveats.length ? p.caveats.map((t: any) => (
+          <div class="theme">
+            {t.label && <h3>{t.label}</h3>}
+            {t.summary && <p>{t.summary}</p>}
+            {t.quotes.map((q: any) => <Quote q={q} />)}
+          </div>
+        )) : <p class="empty">No one in these comments warned against it.</p>}
+      </section>
+    </div>
+
+    {p.who.length > 0 && (
+      <section>
+        <h2>Who recommends it <span class="muted small">as stated in their own comment</span></h2>
+        <ul class="who">
+          {p.who.map((w: any) => (
+            <li><a href={`https://news.ycombinator.com/user?id=${w.by}`}>{w.by}</a>: {w.context} <a class="muted small" href={w.url}>{fmtDate(w.date)}</a></li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {p.makers.length > 0 && (
+      <section>
+        <h2>From the makers <span class="muted small">not counted in the ranking</span></h2>
+        {p.makers.map((q: any) => <Quote q={q} />)}
+      </section>
+    )}
+
+    <section>
+      <h2>All comments <span class="muted small">newest first, {p.quotes.length} shown</span></h2>
+      {p.quotes.map((q: any) => <Quote q={q} />)}
+    </section>
+
+    {p.threads.length > 0 && (
+      <section>
+        <h2>Threads where it came up</h2>
+        <ul class="who">
+          {p.threads.map((t: any) => <li><a href={t.url}>{t.title}</a> <span class="muted small">· {t.mentions} mention{t.mentions === 1 ? "" : "s"}</span></li>)}
+        </ul>
+      </section>
+    )}
+    <p class="small muted" style="margin-top:24px">
+      Data: <a href={`/export/p/${p.slug}.json`}>{p.slug}.json</a>. Quotes are verbatim; the verdict and theme labels are written by a model from these comments and every clause links to its sources.
+    </p>
+  </article>
+</Base>

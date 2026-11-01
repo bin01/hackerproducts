@@ -1,0 +1,50 @@
+---
+import Base from "../layouts/Base.astro";
+import ProductList from "../components/ProductList.astro";
+import { listed, rising, categories, stats } from "../lib/data";
+
+const pool = listed.filter((p) => p.has_verdict).length >= 12 ? listed.filter((p) => p.has_verdict) : listed;
+---
+<Base active="home">
+  <p class="lede">
+    Software that Hacker News commenters actually recommend, ranked by how many different people recommend it,
+    with the comments that say why. {stats.listed.toLocaleString("en")} products from {stats.labeled.toLocaleString("en")} labeled comments, {stats.window}.
+  </p>
+  <div class="chips">
+    {categories.slice(0, 14).map((c) => <a class="chip" href={`/c/${c.slug}/`}>{c.name}<span class="muted">{c.count}</span></a>)}
+    <a class="chip" href="/categories/">All categories →</a>
+  </div>
+
+  <div class="cols">
+    <section>
+      <h2>Rising <span class="muted small">last 90 days vs the year</span></h2>
+      <ProductList items={rising.slice(0, 10)} showCategory={false} metric="rising" />
+      <div class="more"><a href="/rising/">More rising →</a></div>
+    </section>
+    <section>
+      <h2>All-time top <span class="muted small">distinct recommenders, recency-weighted</span></h2>
+      <ProductList items={listed.slice(0, 10)} showCategory={false} />
+      <div class="more"><a href="/top/">Full ranking →</a></div>
+    </section>
+  </div>
+
+  <h2>Today's shelf <span class="muted small">a different six every day</span></h2>
+  <div class="shelf" id="shelf">
+    {pool.map((p, i) => (
+      <a class="card" href={`/p/${p.slug}/`} hidden={i >= 6} data-shelf>
+        <b>{p.name}</b>
+        <span class="muted small">{p.category_name} · {p.recommenders} recommenders</span>
+        <p>{p.why.length > 140 ? p.why.slice(0, 138) + "…" : p.why}</p>
+      </a>
+    ))}
+  </div>
+  <script is:inline>
+    (() => {
+      const cards = [...document.querySelectorAll("[data-shelf]")];
+      let seed = [...new Date().toISOString().slice(0, 10)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+      const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+      const order = cards.map((c, i) => [rand(), i]).sort((a, b) => a[0] - b[0]).slice(0, 6).map((x) => x[1]);
+      cards.forEach((c, i) => (c.hidden = !order.includes(i)));
+    })();
+  </script>
+</Base>

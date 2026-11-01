@@ -1,0 +1,113 @@
+---
+import "../styles/global.css";
+import { stats } from "../lib/data";
+
+interface Props { title?: string; description?: string; active?: string }
+const { title, description = "Software that Hacker News commenters actually recommend, with the comments that say why.", active = "" } = Astro.props;
+const full = title ? `${title} · HackerProducts` : "HackerProducts: what HN actually uses";
+const nav = [
+  ["/", "home", "Home"],
+  ["/top/", "top", "Top"],
+  ["/rising/", "rising", "Rising"],
+  ["/categories/", "categories", "Categories"],
+  ["/about/", "about", "About"],
+];
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{full}</title>
+  <meta name="description" content={description} />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <script is:inline>
+    try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="logo" href="/"><b>P</b>HackerProducts</a>
+      <nav class="nav">
+        {nav.map(([href, key, label]) => <a href={href} aria-current={active === key ? "page" : undefined}>{label}</a>)}
+      </nav>
+      <form action="/search/" method="get" role="search">
+        <input id="q" name="q" type="search" placeholder="Search  /" aria-label="Search products and quotes" autocomplete="off" />
+      </form>
+      <button class="icon-btn" id="theme" title="Toggle dark mode (t)" aria-label="Toggle dark mode">◐</button>
+    </div>
+  </header>
+  <main class="wrap">
+    <slot />
+  </main>
+  <footer>
+    <div class="wrap">
+      Built from {stats.comments.toLocaleString("en")} Hacker News comments ({stats.window}). Every quote links to its comment on news.ycombinator.com.
+      Press <kbd>?</kbd> for keyboard shortcuts · <a href="/export/products.json">JSON export</a> · <a href="/about/">How this works</a>
+    </div>
+  </footer>
+  <dialog id="help">
+    <b>Keyboard shortcuts</b>
+    <table>
+      <tr><td><kbd>j</kbd> / <kbd>k</kbd></td><td>Next / previous item</td></tr>
+      <tr><td><kbd>o</kbd> or <kbd>Enter</kbd></td><td>Open selected item</td></tr>
+      <tr><td><kbd>/</kbd></td><td>Search</td></tr>
+      <tr><td><kbd>g</kbd> <kbd>h</kbd></td><td>Home</td></tr>
+      <tr><td><kbd>g</kbd> <kbd>t</kbd></td><td>Top all-time</td></tr>
+      <tr><td><kbd>g</kbd> <kbd>r</kbd></td><td>Rising</td></tr>
+      <tr><td><kbd>g</kbd> <kbd>c</kbd></td><td>Categories</td></tr>
+      <tr><td><kbd>t</kbd></td><td>Toggle dark mode</td></tr>
+      <tr><td><kbd>?</kbd></td><td>This help</td></tr>
+    </table>
+    <form method="dialog"><button class="btn" style="margin-top:10px">Close (Esc)</button></form>
+  </dialog>
+  <script is:inline>
+    (() => {
+      const root = document.documentElement;
+      const dark = () => root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+      const toggle = () => {
+        root.dataset.theme = dark() ? "light" : "dark";
+        try { localStorage.setItem("theme", root.dataset.theme); } catch (e) {}
+      };
+      document.getElementById("theme").addEventListener("click", toggle);
+      const help = document.getElementById("help");
+      let idx = -1, g = false;
+      const rows = () => [...document.querySelectorAll("[data-nav]")];
+      const select = (i) => {
+        const r = rows();
+        if (!r.length) return;
+        idx = Math.max(0, Math.min(r.length - 1, i));
+        r.forEach((el, n) => el.classList.toggle("sel", n === idx));
+        r[idx].scrollIntoView({ block: "nearest" });
+      };
+      document.addEventListener("keydown", (e) => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        const tag = (e.target.tagName || "").toLowerCase();
+        if (tag === "input" || tag === "textarea") {
+          if (e.key === "Escape") e.target.blur();
+          return;
+        }
+        if (g) {
+          g = false;
+          const go = { h: "/", t: "/top/", r: "/rising/", c: "/categories/" }[e.key];
+          if (go) { location.href = go; return; }
+        }
+        switch (e.key) {
+          case "j": select(idx + 1); break;
+          case "k": select(idx - 1); break;
+          case "o": case "Enter": {
+            const r = rows()[idx];
+            if (r) { const a = r.querySelector("a[href]") || r; if (a.href) location.href = a.href; }
+            break;
+          }
+          case "/": e.preventDefault(); document.getElementById("q").focus(); break;
+          case "?": help.open ? help.close() : help.showModal(); break;
+          case "t": toggle(); break;
+          case "g": g = true; setTimeout(() => (g = false), 1200); break;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+---
+import Base from "../layouts/Base.astro";
+import ProductList from "../components/ProductList.astro";
+import ListTools from "../components/ListTools.astro";
+import { rising } from "../lib/data";
+---
+<Base title="Rising" active="rising">
+  <h1 style="font-size:18px">Rising</h1>
+  <p class="lede">Products with more recommenders in the last 90 days than their usual rate over the year before. "+N" is the number of extra recommenders.</p>
+  <ListTools title="Rising" items={rising} json="/export/products.json" />
+  <ProductList items={rising} metric="rising" />
+</Base>

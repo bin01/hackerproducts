@@ -1,0 +1,38 @@
+---
+import type { Summary } from "../lib/data";
+import { months, monthLabel } from "../lib/data";
+
+interface Props { items: Summary[]; start?: number; showCategory?: boolean; metric?: "score" | "rising" }
+const { items, start = 1, showCategory = true, metric = "score" } = Astro.props;
+
+function bar(s: Summary["sentiment"]) {
+  const total = s.recommend + s.neutral + s.compare + s.warn || 1;
+  return (["recommend", "neutral", "compare", "warn"] as const).map((k) => ({ k, w: (100 * s[k]) / total }));
+}
+const sparkMax = (p: Summary) => Math.max(1, ...p.spark);
+---
+<ol class="list">
+  {items.map((p, i) => (
+    <li class="row" data-nav>
+      <span class="rank">{start + i}.</span>
+      <div>
+        <a class="name" href={`/p/${p.slug}/`}>{p.name}</a>
+        <span class="meta">
+          {" "}· {p.recommenders} recommender{p.recommenders === 1 ? "" : "s"}
+          {p.warners > 0 && <> · {p.warners} warn{p.warners === 1 ? "s" : ""}</>}
+          {metric === "rising" && <> · <b style="color:var(--accent-ink)">+{Math.round(p.rising)}</b> vs usual</>}
+          {showCategory && <> · <a href={`/c/${p.category}/`}>{p.category_name}</a></>}
+        </span>
+      </div>
+      <div class="viz">
+        <svg class="spark" width="60" height="16" viewBox="0 0 60 16" aria-label={`Recommendations per month, ${monthLabel(months[0])} to ${monthLabel(months[months.length - 1])}`}>
+          {p.spark.map((v, j) => <rect x={j * 5} y={16 - (14 * v) / sparkMax(p) - 1} width="4" height={(14 * v) / sparkMax(p) + 1} opacity={v ? 1 : 0.25} />)}
+        </svg>
+        <span class="bar" title={`${p.sentiment.recommend} recommend · ${p.sentiment.neutral} neutral · ${p.sentiment.compare} compare · ${p.sentiment.warn} warn`}>
+          {bar(p.sentiment).map((b) => <span class={`s-${b.k}`} style={`width:${b.w}%`} />)}
+        </span>
+      </div>
+      {p.why && <div class:list={["why", { quoted: p.why_is_quote }]}>{p.why}</div>}
+    </li>
+  ))}
+</ol>

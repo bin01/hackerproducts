@@ -1,0 +1,27 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Search">
+  <link href="/pagefind/pagefind-ui.css" rel="stylesheet" />
+  <h1 style="font-size:18px">Search</h1>
+  <p class="lede">Searches product names, verdicts and every quote. Try "self-hosted", "password manager" or "switched from Notion".</p>
+  <div id="search"></div>
+  <style is:global>
+    #search { --pagefind-ui-scale: .8; --pagefind-ui-primary: var(--accent-ink); --pagefind-ui-text: var(--text);
+      --pagefind-ui-background: var(--card); --pagefind-ui-border: var(--rule); --pagefind-ui-tag: var(--bg);
+      --pagefind-ui-font: var(--font); --pagefind-ui-border-radius: 4px; }
+    #search .pagefind-ui__result-link { color: var(--text); }
+  </style>
+  <script is:inline src="/pagefind/pagefind-ui.js"></script>
+  <script is:inline>
+    window.addEventListener("DOMContentLoaded", () => {
+      if (!window.PagefindUI) {
+        document.getElementById("search").innerHTML = '<p class="empty">The search index is built with the production site (npm run build).</p>';
+        return;
+      }
+      const ui = new PagefindUI({ element: "#search", showSubResults: true, showImages: false, resetStyles: false });
+      const q = new URLSearchParams(location.search).get("q");
+      if (q) { ui.triggerSearch(q); document.getElementById("q").value = q; }
+    });
+  </script>
+</Base>

@@ -1,0 +1,12 @@
+---
+import Base from "../layouts/Base.astro";
+import ProductList from "../components/ProductList.astro";
+import ListTools from "../components/ListTools.astro";
+import { listed } from "../lib/data";
+---
+<Base title="All-time top" active="top">
+  <h1 style="font-size:18px">All-time top</h1>
+  <p class="lede">Ranked by distinct recommenders (one vote per HN user), weighted by recency, minus people who warn against it. Comments by a product's own makers don't count.</p>
+  <ListTools title="All-time top" items={listed} json="/export/products.json" />
+  <ProductList items={listed} />
+</Base>

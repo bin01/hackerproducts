@@ -1,0 +1,21 @@
+---
+import Base from "../../layouts/Base.astro";
+import ProductList from "../../components/ProductList.astro";
+import ListTools from "../../components/ListTools.astro";
+import { categories, listed } from "../../lib/data";
+
+export function getStaticPaths() {
+  return categories.map((c) => ({ params: { slug: c.slug }, props: { c } }));
+}
+const { c } = Astro.props;
+const items = listed.filter((p) => p.category === c.slug);
+---
+<Base title={c.name} active="categories" description={`What Hacker News commenters recommend for ${c.name.toLowerCase()}.`}>
+  <div class="chips">
+    {categories.map((o) => <a class:list={["chip", { on: o.slug === c.slug }]} href={`/c/${o.slug}/`}>{o.name}</a>)}
+  </div>
+  <h1 style="font-size:18px">{c.name}</h1>
+  <p class="lede">What HN commenters recommend, ranked by distinct recommenders. The line under each is the HN verdict, or the strongest quote where there isn't one yet.</p>
+  <ListTools title={c.name} items={items} json={`/export/category-${c.slug}.json`} />
+  <ProductList items={items} showCategory={false} />
+</Base>
