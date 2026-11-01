@@ -35,6 +35,7 @@ synth:
 	uv run pipeline/synth.py --min $(SYNTH_MIN)
 
 publish:
+	uv run pipeline/official.py
 	uv run pipeline/publish.py
 	uv run pipeline/icons.py
 	uv run pipeline/publish.py

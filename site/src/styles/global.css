@@ -61,7 +61,7 @@ h2 .muted { font-weight: normal; }
   .top input { width: 100%; }
 }
 
-main { padding: 18px 0 40px; }
+main.wrap { padding-top: 28px; padding-bottom: 40px; }
 .lede { font-size: 13px; color: var(--muted); margin: 0 0 6px; }
 
 /* chips */
@@ -204,7 +204,7 @@ dialog td { padding: 3px 8px 3px 0; }
 @media (max-width: 720px) { .cols { grid-template-columns: minmax(0, 1fr); } }
 
 /* home v2: chips nav and category leaders */
-.home-chips { margin-top: 2px; }
+.home-chips { margin-top: 0; }
 .leaders { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
 @media (max-width: 640px) { .leaders { grid-template-columns: minmax(0, 1fr); } }
 .leader { display: block; text-decoration: none; padding: 10px 10px 11px; border-top: 1px solid var(--rule); border-radius: 3px; }

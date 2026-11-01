@@ -1,6 +1,6 @@
 """Fetch a small icon per listed product domain into site/public/icons/<slug>.png (cached).
 
-Uses DuckDuckGo's favicon service at build time so the published site makes no third-party
+Uses DuckDuckGo's favicon service (or the GitHub owner's avatar for repo-only projects) at build time so the published site makes no third-party
 requests. Products without a domain, or whose icon is missing or a placeholder, get a monogram.
 """
 import json
@@ -22,21 +22,29 @@ SHARED_HOSTS = {"github.com", "gitlab.com", "codeberg.org", "sr.ht", "git.sr.ht"
                 "crates.io", "addons.mozilla.org", "chromewebstore.google.com", "f-droid.org"}
 
 
-def host(p):
+def source(p):
+    """Icon URL for a product: its site's favicon, or the GitHub owner's avatar for repo-only projects."""
     u = p.get("official_url") or ""
     if u:
-        h = urlparse(u if "://" in u else "https://" + u).hostname or ""
-        h = h.removeprefix("www.")
-        return None if h in SHARED_HOSTS or h.endswith(".github.io") else h
+        pu = urlparse(u if "://" in u else "https://" + u)
+        h = (pu.hostname or "").removeprefix("www.")
+        if h == "github.com":
+            parts = [x for x in pu.path.split("/") if x]
+            return f"https://github.com/{parts[0]}.png?size=64" if parts else None
+        if h.endswith(".github.io"):
+            return f"https://github.com/{h.split('.')[0]}.png?size=64"
+        if h in SHARED_HOSTS:
+            return None
+        return f"https://icons.duckduckgo.com/ip3/{h}.ico"
     if p.get("github_repo"):
-        return None
+        return f"https://github.com/{p['github_repo'].split('/')[1]}.png?size=64"
     d = p.get("domain")
-    return None if d in SHARED_HOSTS else d
+    return None if not d or d in SHARED_HOSTS else f"https://icons.duckduckgo.com/ip3/{d}.ico"
 
 
-def fetch(client, slug, h):
+def fetch(client, slug, url):
     try:
-        r = client.get(f"https://icons.duckduckgo.com/ip3/{h}.ico", timeout=15, follow_redirects=True)
+        r = client.get(url, timeout=15, follow_redirects=True)
     except httpx.HTTPError:
         return slug, False
     # DDG serves a generic placeholder for unknown sites; it is tiny or not an image.
@@ -55,9 +63,9 @@ def main():
     for s in cat["products"]:
         if not s["listed"] or (OUT / f"{s['slug']}.ico").exists() or s["slug"] in missing:
             continue
-        h = host(json.loads((details / f"{s['slug']}.json").read_text()))
-        if h:
-            jobs.append((s["slug"], h))
+        src = source(json.loads((details / f"{s['slug']}.json").read_text()))
+        if src:
+            jobs.append((s["slug"], src))
         else:
             missing.add(s["slug"])
     with httpx.Client(headers={"User-Agent": "hackerproducts-prototype"}) as client, ThreadPoolExecutor(12) as ex:

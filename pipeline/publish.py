@@ -47,6 +47,8 @@ def main():
         comps[r["product_a"]].append((r["product_b"], r["co_mentions"], r["switched_b_to_a"], r["switched_a_to_b"]))
         comps[r["product_b"]].append((r["product_a"], r["co_mentions"], r["switched_a_to_b"], r["switched_b_to_a"]))
 
+    off_f = ROOT / "data" / "resolve" / "official_v1.json"
+    official = json.loads(off_f.read_text()) if off_f.exists() else {}
     paged = {pid for pid, s in scores.items() if s["distinct_commenters"] >= MIN_PAGE and s["distinct_recommenders"] >= 1}
 
     def quote_obj(m):
@@ -128,7 +130,7 @@ def main():
                 titles[m["story_id"]] = m["story_title"]
         detail = {
             **summary,
-            "domain": p["domain"], "github_repo": p["github_repo"], "official_url": p["official_url"] or (
+            "domain": p["domain"], "github_repo": p["github_repo"], "official_url": p["official_url"] or official.get(p["name"]) or (
                 f"https://github.com/{p['github_repo'].split('/', 1)[1]}" if p["github_repo"] else (f"https://{p['domain']}" if p["domain"] else "")),
             "pricing": p["pricing"] or "", "aliases": [r[0] for r in con.execute("SELECT raw_name FROM alias WHERE product_id = ? ORDER BY n DESC", (pid,))],
             "verdict": verdict, "praise": th["praise"], "caveats": th["caveat"], "who": who[:12], "tags": tags,
