@@ -147,3 +147,58 @@ dialog td { padding: 3px 8px 3px 0; }
 .btns { display: flex; gap: 8px; margin: 8px 0; }
 .btn { font: 12px var(--font); padding: 3px 9px; border: 1px solid var(--rule); background: var(--card); color: var(--text); border-radius: 3px; cursor: pointer; text-decoration: none; }
 .btn:hover { border-color: var(--accent); }
+
+/* compact list hooks */
+.row .why.hook, .row .why.clamp { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .why.hook .muted { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+
+/* home v2 */
+.hero { padding: 22px 0 6px; }
+.hero h1 { font-size: 20px; margin-bottom: 10px; }
+.hero form input { width: 100%; font: 16px var(--font); padding: 10px 12px; border: 1px solid var(--rule); border-radius: 4px; background: var(--card); color: var(--text); }
+.hero form input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.needs { font-size: 12px; color: var(--muted); margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 22px; background: var(--card); border: 1px solid var(--rule); border-top: 3px solid var(--accent); border-radius: 4px; padding: 14px 16px; }
+.pick .pv { grid-column: 1 / 3; }
+.pick .pv a.name { font-size: 18px; font-weight: bold; text-decoration: none; }
+.pick .pv p { margin: 6px 0 0; font-size: 14px; }
+.pick .pq { font-size: 13px; }
+.pick .pq .k { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+.pick .pq .k.good { color: var(--rec); } .pick .pq .k.bad { color: var(--warn); }
+.pick .pq cite { display: block; font-style: normal; font-size: 11px; color: var(--muted); margin-top: 3px; }
+@media (max-width: 640px) { .pick { grid-template-columns: 1fr; } .pick .pv { grid-column: auto; } }
+.catgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 760px) { .catgrid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .catgrid { grid-template-columns: 1fr; } }
+.cat { background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 10px 12px; }
+.cat h3 { font-size: 13px; margin-bottom: 6px; }
+.cat h3 a { text-decoration: none; }
+.cat ol { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.cat li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+.cat li a { text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat li span { color: var(--muted); font-size: 12px; }
+.cat .all { display: block; font-size: 12px; margin-top: 6px; color: var(--muted); }
+.strip-list { list-style: none; margin: 0; padding: 0; }
+.strip-list li { display: grid; grid-template-columns: 1fr auto 64px; gap: 10px; align-items: center; padding: 5px 8px; border-radius: 4px; font-size: 13px; }
+.strip-list li + li { border-top: 1px solid var(--rule); }
+.strip-list li.sel { background: var(--sel); outline: 1px solid var(--accent); }
+.strip-list a { font-weight: bold; text-decoration: none; }
+.strip-list .up { color: var(--accent-ink); font-weight: bold; font-size: 12px; }
+.debates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 720px) { .debates { grid-template-columns: 1fr; } }
+.debate { background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 10px 12px; }
+.debate .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.debate .side a.name { font-weight: bold; text-decoration: none; }
+.debate .side .n { font-size: 11px; color: var(--muted); }
+.debate blockquote { margin: 5px 0 0; font-size: 12px; }
+.debate blockquote a { color: var(--muted); font-size: 11px; }
+.debate .foot { font-size: 11px; color: var(--muted); margin-top: 8px; }
+.gems { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px; }
+@media (max-width: 640px) { .gems { grid-template-columns: 1fr; } }
+.gems li { font-size: 13px; padding: 4px 0; }
+.gems a { font-weight: bold; text-decoration: none; }
+.gems q { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cols > section { min-width: 0; }
+.gems li { min-width: 0; }
+.cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@media (max-width: 720px) { .cols { grid-template-columns: minmax(0, 1fr); } }

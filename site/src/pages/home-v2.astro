@@ -1,0 +1,136 @@
+---
+import Base from "../layouts/Base.astro";
+import { listed, rising, categories, stats, products, months, monthLabel } from "../lib/data";
+import catalog from "../data/catalog.json";
+import picks from "../../public/export/picks.json";
+
+const home = catalog.home;
+const bySlug = Object.fromEntries(products.map((p) => [p.slug, p]));
+const needs = [
+  ["password manager", "Password managers"],
+  ["self-hosted photos", "Self-hosted photos"],
+  ["terminal", "Terminals"],
+  ["note-taking", "Note-taking"],
+  ["VPN", "VPNs"],
+  ["switched from", "What people switched from"],
+];
+const AI = new Set(["ai", "ai-coding"]);
+const ordered = [...categories.filter((c) => !AI.has(c.slug)), ...categories.filter((c) => AI.has(c.slug))];
+const grid = [...ordered.filter((c) => c.slug !== "other").slice(0, 10), ...categories.filter((c) => AI.has(c.slug))].map((c) => ({
+  ...c, top: listed.filter((p) => p.category === c.slug).slice(0, 3),
+}));
+const day = Math.floor(Date.now() / 86400000);
+const pick = picks[day % picks.length];
+let nAi = 0;
+const risingMix = rising.filter((p) => !AI.has(p.category) || nAi++ < 2).slice(0, 5);
+const gems = home.gems.map((s) => bySlug[s]).filter(Boolean);
+const sparkMax = (v: number[]) => Math.max(1, ...v);
+---
+<Base title="Home v2" active="home-v2">
+  <section class="hero">
+    <h1>What do HN people actually use for…</h1>
+    <form action="/search/" method="get" role="search">
+      <input name="q" type="search" placeholder="a password manager, a terminal, self-hosted photos…" aria-label="Search" autocomplete="off" />
+    </form>
+    <div class="needs">
+      Try: {needs.map(([q, label]) => <a href={`/search/?q=${encodeURIComponent(q)}`}>{label}</a>)}
+    </div>
+  </section>
+
+  <h2>Pick of the day</h2>
+  <div class="pick" id="pick">
+    <div class="pv">
+      <a class="name" href={`/p/${pick.slug}/`} data-f="link">{pick.name}</a>
+      <span class="muted small"> · <span data-f="meta">{pick.category_name} · {pick.recommenders} recommenders</span></span>
+      <p data-f="verdict">{pick.verdict}</p>
+    </div>
+    <div class="pq">
+      <span class="k good">Loved for <span data-f="plabel">{pick.praise.label}</span></span>
+      “<span data-f="pquote">{pick.praise.quote}</span>”
+      <cite><a data-f="pby" href={pick.praise.url}>{pick.praise.by}, {pick.praise.date.slice(0, 7)}</a></cite>
+    </div>
+    <div class="pq">
+      <span class="k bad">Caveat: <span data-f="clabel">{pick.caveat.label}</span></span>
+      “<span data-f="cquote">{pick.caveat.quote}</span>”
+      <cite><a data-f="cby" href={pick.caveat.url}>{pick.caveat.by}, {pick.caveat.date.slice(0, 7)}</a></cite>
+    </div>
+  </div>
+
+  <h2>Browse by category <span class="muted small">top 3 by distinct recommenders</span></h2>
+  <div class="catgrid">
+    {grid.map((c) => (
+      <div class="cat">
+        <h3><a href={`/c/${c.slug}/`}>{c.name}</a></h3>
+        <ol>
+          {c.top.map((p) => <li><a href={`/p/${p.slug}/`}>{p.name}</a><span>{p.recommenders}</span></li>)}
+        </ol>
+        <a class="all" href={`/c/${c.slug}/`}>See all {c.count} →</a>
+      </div>
+    ))}
+  </div>
+  <div class="more"><a href="/categories/">All {categories.length} categories →</a></div>
+
+  <div class="cols">
+    <section>
+      <h2>Rising <span class="muted small">extra recommenders, last 90 days</span></h2>
+      <ol class="strip-list">
+        {risingMix.map((p) => (
+          <li data-nav>
+            <span><a href={`/p/${p.slug}/`}>{p.name}</a> <span class="muted small">{p.category_name}</span></span>
+            <span class="up">+{Math.round(p.rising)}</span>
+            <svg class="spark" width="60" height="16" viewBox="0 0 60 16" aria-label={`Recommendations per month, ${monthLabel(months[0])} to ${monthLabel(months[months.length - 1])}`}>
+              {p.spark.map((v, j) => <rect x={j * 5} y={16 - (14 * v) / sparkMax(p.spark) - 1} width="4" height={(14 * v) / sparkMax(p.spark) + 1} opacity={v ? 1 : 0.25} />)}
+            </svg>
+          </li>
+        ))}
+      </ol>
+      <div class="more"><a href="/rising/">All rising →</a></div>
+    </section>
+    <section>
+      <h2>Hidden gems <span class="muted small">few recommenders, no warnings</span></h2>
+      <ul class="gems" style="grid-template-columns: minmax(0, 1fr)">
+        {gems.map((p) => (
+          <li data-nav><a href={`/p/${p.slug}/`}>{p.name}</a> <span class="muted small">{p.category_name} · {p.recommenders} recommenders</span><q>{p.short_quote}</q></li>
+        ))}
+      </ul>
+    </section>
+  </div>
+
+  <h2>Debates <span class="muted small">pairs HN compares most often</span></h2>
+  <div class="debates">
+    {home.debates.map((d) => (
+      <div class="debate">
+        <div class="vs">
+          {d.sides.map((s) => (
+            <div class="side">
+              <a class="name" href={`/p/${s.slug}/`}>{s.name}</a>
+              <div class="n">{s.recommenders} recommend{s.warners > 0 && <> · {s.warners} warn</>}{s.switched_in > 0 && <> · {s.switched_in} switched to it</>}</div>
+              <blockquote>“{s.quote.quote}” <a href={s.quote.url}>{s.quote.by}</a></blockquote>
+            </div>
+          ))}
+        </div>
+        <div class="foot">{d.co} comments discuss both</div>
+      </div>
+    ))}
+  </div>
+
+  <p class="small muted" style="margin-top:28px">
+    {stats.listed.toLocaleString("en")} products recommended by HN commenters, from {stats.labeled.toLocaleString("en")} comments, {stats.window}.
+    Full rankings: <a href="/top/">all-time top</a> · <a href="/rising/">rising</a>.
+  </p>
+
+  <script is:inline>
+    // Pick of the day changes daily without a rebuild.
+    fetch("/export/picks.json").then((r) => r.json()).then((picks) => {
+      const p = picks[Math.floor(Date.now() / 86400000) % picks.length];
+      const f = (k) => document.querySelector(`#pick [data-f="${k}"]`);
+      f("link").textContent = p.name; f("link").href = `/p/${p.slug}/`;
+      f("meta").textContent = `${p.category_name} · ${p.recommenders} recommenders`;
+      f("verdict").textContent = p.verdict;
+      f("plabel").textContent = p.praise.label; f("pquote").textContent = p.praise.quote;
+      f("pby").textContent = `${p.praise.by}, ${p.praise.date.slice(0, 7)}`; f("pby").href = p.praise.url;
+      f("clabel").textContent = p.caveat.label; f("cquote").textContent = p.caveat.quote;
+      f("cby").textContent = `${p.caveat.by}, ${p.caveat.date.slice(0, 7)}`; f("cby").href = p.caveat.url;
+    }).catch(() => {});
+  </script>
+</Base>

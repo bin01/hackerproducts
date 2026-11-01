@@ -15,7 +15,7 @@ const items = listed.filter((p) => p.category === c.slug);
     {categories.map((o) => <a class:list={["chip", { on: o.slug === c.slug }]} href={`/c/${o.slug}/`}>{o.name}</a>)}
   </div>
   <h1 style="font-size:18px">{c.name}</h1>
-  <p class="lede">What HN commenters recommend, ranked by distinct recommenders. The line under each is the HN verdict, or the strongest quote where there isn't one yet.</p>
+  <p class="lede">What HN commenters recommend, ranked by distinct recommenders. Under each: what people praise most and the most common caveat, or the strongest quote where there is no summary yet.</p>
   <ListTools title={c.name} items={items} json={`/export/category-${c.slug}.json`} />
   <ProductList items={items} showCategory={false} />
 </Base>

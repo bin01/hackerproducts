@@ -32,7 +32,12 @@ const sparkMax = (p: Summary) => Math.max(1, ...p.spark);
           {bar(p.sentiment).map((b) => <span class={`s-${b.k}`} style={`width:${b.w}%`} />)}
         </span>
       </div>
-      {p.why && <div class:list={["why", { quoted: p.why_is_quote }]}>{p.why}</div>}
+      {p.loved.length > 0 ? (
+        <div class="why hook">
+          <span class="muted">Loved for</span> {p.loved.join(", ")}
+          {p.caveat && <> · <span class="muted">Caveat</span> {p.caveat}</>}
+        </div>
+      ) : p.short_quote && <div class="why quoted clamp">{p.short_quote}</div>}
     </li>
   ))}
 </ol>
