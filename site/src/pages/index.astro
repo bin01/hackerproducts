@@ -1,50 +1,146 @@
 ---
 import Base from "../layouts/Base.astro";
-import ProductList from "../components/ProductList.astro";
-import { listed, rising, categories, stats } from "../lib/data";
+import { listed, rising, categories, stats, products, months, monthLabel } from "../lib/data";
+import catalog from "../data/catalog.json";
+import picks from "../../public/export/picks.json";
+import Icon from "../components/Icon.astro";
 
-const pool = listed.filter((p) => p.has_verdict).length >= 12 ? listed.filter((p) => p.has_verdict) : listed;
+const home = catalog.home;
+const bySlug = Object.fromEntries(products.map((p) => [p.slug, p]));
+const AI = new Set(["ai", "ai-coding"]);
+const chips = [...categories.filter((c) => c.slug !== "other"), ...categories.filter((c) => c.slug === "other")];
+const ordered = [...categories.filter((c) => !AI.has(c.slug)), ...categories.filter((c) => AI.has(c.slug))];
+const shelves = ordered.filter((c) => c.slug !== "other").map((c) => {
+  const top = listed.filter((p) => p.category === c.slug).slice(0, 4);
+  return { ...c, top, max: Math.max(1, ...top.map((p) => p.recommenders)) };
+}).filter((c) => c.top.length >= 4);
+// Each day: 4 non-AI shelves in rotation, then 1 AI shelf. The script below repeats this in the browser.
+function dayShelves(day: number) {
+  const non = shelves.filter((c) => !AI.has(c.slug)), ai = shelves.filter((c) => AI.has(c.slug));
+  const pickN = Array.from({ length: 4 }, (_, i) => non[(day * 4 + i) % non.length].slug);
+  return [...pickN, ai[day % ai.length].slug];
+}
+const day = Math.floor(Date.now() / 86400000);
+const pick = picks[day % picks.length];
+const initial = dayShelves(day);
+let nAi = 0;
+const risingMix = rising.filter((p) => !AI.has(p.category) || nAi++ < 2).slice(0, 5);
+const gems = home.gems.map((s) => bySlug[s]).filter(Boolean);
+const sparkMax = (v: number[]) => Math.max(1, ...v);
 ---
 <Base active="home">
-  <p class="lede">
-    Software that Hacker News commenters actually recommend, ranked by how many different people recommend it,
-    with the comments that say why. {stats.listed.toLocaleString("en")} products from {stats.labeled.toLocaleString("en")} labeled comments, {stats.window}.
-  </p>
-  <div class="chips">
-    {categories.slice(0, 14).map((c) => <a class="chip" href={`/c/${c.slug}/`}>{c.name}<span class="muted">{c.count}</span></a>)}
-    <a class="chip" href="/categories/">All categories →</a>
+  <div class="chips home-chips">
+    {chips.map((c) => <a class="chip" href={`/c/${c.slug}/`}>{c.name}</a>)}
+  </div>
+
+  <h2>Pick of the day</h2>
+  <div class="pick" id="pick">
+    <div class="pv">
+      <a class="name" href={`/p/${pick.slug}/`} data-f="link">{pick.name}</a>
+      <span class="muted small"> · <span data-f="meta">{pick.category_name} · {pick.recommenders} recommenders</span></span>
+      <p data-f="verdict">{pick.verdict}</p>
+    </div>
+    <div class="pq">
+      <span class="k good">Loved for <span data-f="plabel">{pick.praise.label}</span></span>
+      “<span data-f="pquote">{pick.praise.quote}</span>”
+      <cite><a data-f="pby" href={pick.praise.url}>{pick.praise.by}, {pick.praise.date.slice(0, 7)}</a></cite>
+    </div>
+    <div class="pq">
+      <span class="k bad">Caveat: <span data-f="clabel">{pick.caveat.label}</span></span>
+      “<span data-f="cquote">{pick.caveat.quote}</span>”
+      <cite><a data-f="cby" href={pick.caveat.url}>{pick.caveat.by}, {pick.caveat.date.slice(0, 7)}</a></cite>
+    </div>
   </div>
 
   <div class="cols">
     <section>
-      <h2>Rising <span class="muted small">last 90 days vs the year</span></h2>
-      <ProductList items={rising.slice(0, 10)} showCategory={false} metric="rising" />
-      <div class="more"><a href="/rising/">More rising →</a></div>
+      <h2>Rising <span class="muted small">extra recommenders, last 90 days</span></h2>
+      <ol class="strip-list">
+        {risingMix.map((p) => (
+          <li data-nav>
+            <span><a href={`/p/${p.slug}/`}><Icon p={p} />{p.name}</a> <span class="muted small">{p.category_name}</span></span>
+            <span class="up">+{Math.round(p.rising)}</span>
+            <svg class="spark" width="60" height="16" viewBox="0 0 60 16" aria-label={`Recommendations per month, ${monthLabel(months[0])} to ${monthLabel(months[months.length - 1])}`}>
+              {p.spark.map((v, j) => <rect x={j * 5} y={16 - (14 * v) / sparkMax(p.spark) - 1} width="4" height={(14 * v) / sparkMax(p.spark) + 1} opacity={v ? 1 : 0.25} />)}
+            </svg>
+          </li>
+        ))}
+      </ol>
+      <div class="more"><a href="/rising/">All rising →</a></div>
     </section>
     <section>
-      <h2>All-time top <span class="muted small">distinct recommenders, recency-weighted</span></h2>
-      <ProductList items={listed.slice(0, 10)} showCategory={false} />
-      <div class="more"><a href="/top/">Full ranking →</a></div>
+      <h2>Hidden gems <span class="muted small">few recommenders, no warnings</span></h2>
+      <ul class="gems" style="grid-template-columns: minmax(0, 1fr)">
+        {gems.map((p) => (
+          <li data-nav><a href={`/p/${p.slug}/`}><Icon p={p} />{p.name}</a> <span class="muted small">{p.category_name} · {p.recommenders} recommenders</span><q>{p.short_quote}</q></li>
+        ))}
+      </ul>
     </section>
   </div>
 
-  <h2>Today's shelf <span class="muted small">a different six every day</span></h2>
-  <div class="shelf" id="shelf">
-    {pool.map((p, i) => (
-      <a class="card" href={`/p/${p.slug}/`} hidden={i >= 6} data-shelf>
-        <b>{p.name}</b>
-        <span class="muted small">{p.category_name} · {p.recommenders} recommenders</span>
-        <p>{p.why.length > 140 ? p.why.slice(0, 138) + "…" : p.why}</p>
-      </a>
+  <h2>Debates <span class="muted small">pairs HN compares most often</span></h2>
+  <div class="debates">
+    {home.debates.map((d) => (
+      <div class="debate">
+        <div class="vs">
+          {d.sides.map((s) => (
+            <div class="side">
+              <a class="name" href={`/p/${s.slug}/`}><Icon p={bySlug[s.slug]} />{s.name}</a>
+              <div class="n">{s.recommenders} recommend{s.warners > 0 && <> · {s.warners} warn</>}{s.switched_in > 0 && <> · {s.switched_in} switched to it</>}</div>
+              <blockquote>“{s.quote.quote}” <a href={s.quote.url}>{s.quote.by}</a></blockquote>
+            </div>
+          ))}
+        </div>
+        <div class="foot">{d.co} comments discuss both</div>
+      </div>
     ))}
   </div>
+
+  <h2>Top in category <span class="muted small">a different 5 categories each day</span></h2>
+  <div id="shelves">
+    {shelves.map((c, i) => (
+      <section class="shelfrow" data-shelf={c.slug} data-ai={AI.has(c.slug) ? "1" : "0"} hidden={!initial.includes(c.slug)}>
+        <div class="sh"><b>{c.name}</b><a href={`/c/${c.slug}/`}>All {c.count} →</a></div>
+        <div class="tiles">
+          {c.top.map((p) => (
+            <a class="tile" href={`/p/${p.slug}/`}>
+              <span class="tn"><Icon p={p} size={18} />{p.name}</span>
+              <span class="th">{p.loved.length ? <>Loved for {p.loved.join(", ")}</> : p.description || p.short_quote}</span>
+              <span class="tb" title={`${p.recommenders} distinct HN commenters recommend it`}><i style={`width:${Math.max(4, (60 * p.recommenders) / c.max)}px`} />{p.recommenders}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+    ))}
+  </div>
+
+  <p class="small muted" style="margin-top:28px">
+    {stats.listed.toLocaleString("en")} products recommended by HN commenters, from {stats.labeled.toLocaleString("en")} comments, {stats.window}.
+    Full rankings: <a href="/top/">all-time top</a> · <a href="/rising/">rising</a>.
+  </p>
+
   <script is:inline>
+    // Shelves rotate daily without a rebuild: 4 non-AI categories, then 1 AI category.
     (() => {
-      const cards = [...document.querySelectorAll("[data-shelf]")];
-      let seed = [...new Date().toISOString().slice(0, 10)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-      const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
-      const order = cards.map((c, i) => [rand(), i]).sort((a, b) => a[0] - b[0]).slice(0, 6).map((x) => x[1]);
-      cards.forEach((c, i) => (c.hidden = !order.includes(i)));
+      const day = Math.floor(Date.now() / 86400000);
+      const all = [...document.querySelectorAll("[data-shelf]")];
+      const non = all.filter((e) => e.dataset.ai === "0"), ai = all.filter((e) => e.dataset.ai === "1");
+      const show = [...Array.from({ length: 4 }, (_, i) => non[(day * 4 + i) % non.length]), ai[day % ai.length]];
+      const box = document.getElementById("shelves");
+      all.forEach((e) => (e.hidden = true));
+      show.forEach((e) => { e.hidden = false; box.appendChild(e); });
     })();
+    // Pick of the day changes daily without a rebuild.
+    fetch("/export/picks.json").then((r) => r.json()).then((picks) => {
+      const p = picks[Math.floor(Date.now() / 86400000) % picks.length];
+      const f = (k) => document.querySelector(`#pick [data-f="${k}"]`);
+      f("link").textContent = p.name; f("link").href = `/p/${p.slug}/`;
+      f("meta").textContent = `${p.category_name} · ${p.recommenders} recommenders`;
+      f("verdict").textContent = p.verdict;
+      f("plabel").textContent = p.praise.label; f("pquote").textContent = p.praise.quote;
+      f("pby").textContent = `${p.praise.by}, ${p.praise.date.slice(0, 7)}`; f("pby").href = p.praise.url;
+      f("clabel").textContent = p.caveat.label; f("cquote").textContent = p.caveat.quote;
+      f("cby").textContent = `${p.caveat.by}, ${p.caveat.date.slice(0, 7)}`; f("cby").href = p.caveat.url;
+    }).catch(() => {});
   </script>
 </Base>
