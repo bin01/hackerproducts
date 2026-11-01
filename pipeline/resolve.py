@@ -252,6 +252,10 @@ def main():
         if c >= 2:
             by_domain[dk].add(nk)
     for dk, nks in by_domain.items():
+        # A domain tied to 3+ different names is a vendor hosting several products (claude.com: Claude,
+        # Claude Code, ...); merging on it would collapse distinct products, so leave those to name matching.
+        if len(nks) >= 3:
+            continue
         nks = sorted(nks)
         for other in nks[1:]:
             uf.union(nks[0], other)
