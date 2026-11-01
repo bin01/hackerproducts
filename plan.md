@@ -7,7 +7,7 @@ thread (software only, one year of comments, no Person view). This file tracks w
 
 | Stage | Script | Output | Notes |
 |---|---|---|---|
-| ingest | `pipeline/ingest.py` | `data/raw/month=YYYY-MM/items.parquet` | HF open-index dump through Aug 2026 (ends ~23 Aug); Algolia for Sep and Oct 2026. Oct 2025 included only so parent chains resolve. |
+| ingest | `pipeline/ingest.py` | `data/raw/month=YYYY-MM/items.parquet` | HF open-index dump through 23 Aug 2026, topped up from Algolia for the rest of Aug, Sep and Oct. Oct 2025 included only so parent chains resolve. |
 | prefilter | `pipeline/prefilter.py` | `data/candidates.parquet` | DuckDB + regex: phrasing, non-news outbound links, Ask HN tool threads. Priority orders extraction. |
 | gold | `pipeline/extract.py --ids data/gold/ids.txt` x3, `pipeline/gold_eval.py` | `data/gold/report.md`, `choice.txt` | 500 comments (300 priority>=3, 200 below), Haiku low, Sonnet low, Opus medium as reference. |
 | extract | `pipeline/extract.py --model <choice> --top N` | `data/extract/<prompt>/<model>-<effort>/*.jsonl` | `claude -p` on the subscription, batches of 100, 4 workers, resumable by comment id, stops cleanly on usage limit. |
@@ -20,7 +20,6 @@ thread (software only, one year of comments, no Person view). This file tracks w
 
 ## Known gaps in v1
 - No account-age filter (the dump has no user creation dates).
-- 24 to 31 Aug 2026 missing between the dump's end and the Algolia months.
 - Gold reference is Opus, not human labels.
 - Only the 25,000 highest-priority of 347,262 candidates are labeled; `make extract TOP=50000` extends it.
 - Verdicts for the top 160 products; `make synth` with `--limit` raised covers the other 129 with 5+ recommenders.
