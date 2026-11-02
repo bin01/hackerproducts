@@ -4,7 +4,8 @@ import { toMarkdown } from "../lib/data";
 
 interface Props { title: string; items: Summary[]; json: string }
 const { title, items, json } = Astro.props;
-const md = toMarkdown(title, items.slice(0, 50), Astro.site!.origin);
+// Links stay relative here and get the page's own origin when copied, so no host is baked into the build.
+const md = toMarkdown(title, items.slice(0, 50), "");
 ---
 <div class="btns">
   <button class="btn" data-copy={md} type="button">Copy as Markdown</button>
@@ -12,7 +13,7 @@ const md = toMarkdown(title, items.slice(0, 50), Astro.site!.origin);
 </div>
 <script is:inline>
   document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied"; }
+    try { await navigator.clipboard.writeText(b.dataset.copy.replaceAll("](/", `](${location.origin}/`)); b.textContent = "Copied"; }
     catch (e) { b.textContent = "Copy failed"; }
     setTimeout(() => (b.textContent = "Copy as Markdown"), 1500);
   }));
