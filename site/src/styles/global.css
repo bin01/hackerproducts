@@ -309,3 +309,7 @@ details.allc[open] > summary::after { content: "Hide ↑"; }
   .p2-months .months { justify-content: space-between; }
   .p2-months .months .m { flex: 1; }
 }
+.sform input { width: 100%; font: 16px var(--font); padding: 9px 12px; border: 1px solid var(--rule); border-radius: 4px; background: var(--card); color: var(--text); margin: 6px 0 8px; }
+.sform input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.row .why.sx { font-size: 12px; color: var(--muted); }
+.row .why.sx mark { background: var(--sel); color: var(--text); padding: 0 1px; }

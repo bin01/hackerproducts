@@ -19,9 +19,10 @@ const cites = (p.verdict || []).map((c: any) => c.cites.map((q: any) => ({ ...q,
     <div class="ph">
       <div class="mono" aria-hidden="true">{p.name.slice(0, 1).toUpperCase()}</div>
       <div>
-        <h1 data-pagefind-meta="title">{p.name}</h1>
-        {p.description && <p>{p.description}</p>}
-        <div class="facts">
+        <h1 data-pagefind-meta="title" data-pagefind-weight="10">{p.name}</h1>
+        {p.description && <p data-pagefind-weight="5">{p.description}</p>}
+        <span data-pagefind-filter={`category:${p.category_name}`} data-pagefind-meta={`recs:${p.recommenders}`}></span><span data-pagefind-meta={`slug:${p.slug}`}></span>
+        <div class="facts" data-pagefind-ignore>
           <a href={`/c/${p.category}/`}>{p.category_name}</a>
           {p.pricing && p.pricing !== "unknown" && <span>{p.pricing}</span>}
           {host && <a href={p.official_url} rel="nofollow noopener">{host} ↗</a>}
@@ -31,14 +32,14 @@ const cites = (p.verdict || []).map((c: any) => c.cites.map((q: any) => ({ ...q,
     </div>
 
     {p.verdict ? (
-      <div class="verdict">
+      <div class="verdict" data-pagefind-weight="3">
         <span class="label">The HN verdict</span>
         {p.verdict.map((c: any, i: number) => (
           <>{c.text}<sup>{cites[i].map((q: any) => <a href={`#q${q.id}`} title={`${q.by}, ${q.date}: ${q.quote || q.excerpt.slice(0, 120)}`}>[{q.n}]</a>)}</sup></>
         ))}
       </div>
     ) : (
-      <p class="empty" style="margin-top:16px">{p.recommenders < 5 ? "No written verdict: fewer than 5 people recommend it so far." : "No written verdict yet."} The quotes below are what commenters said.</p>
+      <p class="empty" style="margin-top:16px" data-pagefind-ignore>{p.recommenders < 5 ? "No written verdict: fewer than 5 people recommend it so far." : "No written verdict yet."} The quotes below are what commenters said.</p>
     )}
 
     <div class="strip" data-pagefind-ignore>
@@ -92,7 +93,7 @@ const cites = (p.verdict || []).map((c: any) => c.cites.map((q: any) => ({ ...q,
             {t.summary && <p>{t.summary}</p>}
             {t.quotes.map((q: any) => <Quote q={q} />)}
           </div>
-        )) : <p class="empty">No clear praise yet.</p>}
+        )) : <p class="empty" data-pagefind-ignore>No clear praise yet.</p>}
       </section>
       <section>
         <h2>Caveats and dissent</h2>
@@ -102,7 +103,7 @@ const cites = (p.verdict || []).map((c: any) => c.cites.map((q: any) => ({ ...q,
             {t.summary && <p>{t.summary}</p>}
             {t.quotes.map((q: any) => <Quote q={q} />)}
           </div>
-        )) : <p class="empty">No one in these comments warned against it.</p>}
+        )) : <p class="empty" data-pagefind-ignore>No one in these comments warned against it.</p>}
       </section>
     </div>
 

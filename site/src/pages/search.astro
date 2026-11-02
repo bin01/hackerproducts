@@ -2,26 +2,47 @@
 import Base from "../layouts/Base.astro";
 ---
 <Base title="Search">
-  <link href="/pagefind/pagefind-ui.css" rel="stylesheet" />
   <h1 style="font-size:18px">Search</h1>
-  <p class="lede">Searches product names, verdicts and every quote. Try "self-hosted", "password manager" or "switched from Notion".</p>
-  <div id="search"></div>
-  <style is:global>
-    #search { --pagefind-ui-scale: .8; --pagefind-ui-primary: var(--accent-ink); --pagefind-ui-text: var(--text);
-      --pagefind-ui-background: var(--card); --pagefind-ui-border: var(--rule); --pagefind-ui-tag: var(--bg);
-      --pagefind-ui-font: var(--font); --pagefind-ui-border-radius: 4px; }
-    #search .pagefind-ui__result-link { color: var(--text); }
-  </style>
-  <script is:inline src="/pagefind/pagefind-ui.js"></script>
-  <script is:inline>
-    window.addEventListener("DOMContentLoaded", () => {
-      if (!window.PagefindUI) {
-        document.getElementById("search").innerHTML = '<p class="empty">The search index is built with the production site (npm run build).</p>';
-        return;
-      }
-      const ui = new PagefindUI({ element: "#search", showSubResults: true, showImages: false, resetStyles: false });
-      const q = new URLSearchParams(location.search).get("q");
-      if (q) { ui.triggerSearch(q); document.getElementById("q").value = q; }
-    });
+  <p class="lede">Searches product names, descriptions, verdicts and quotes. Results favor products more people recommend.</p>
+  <form id="sform" class="sform" role="search">
+    <input id="sq" type="search" placeholder="password manager, terminal, self-hosted photos…" aria-label="Search" autocomplete="off" />
+  </form>
+  <p id="sstatus" class="muted small"></p>
+  <ol id="sresults" class="list"></ol>
+  <script is:inline type="module">
+    const input = document.getElementById("sq"), list = document.getElementById("sresults"), status = document.getElementById("sstatus");
+    const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    let pf;
+    let cat = {};
+    try { pf = await import("/pagefind/pagefind.js"); await pf.options({ excerptLength: 24 }); await pf.init();
+      cat = Object.fromEntries((await (await fetch("/export/products.json")).json()).products.map((p) => [p.slug, p])); }
+    catch (e) { status.textContent = "The search index is built with the production site (npm run build)."; }
+    let seq = 0;
+    async function run(q, now = false) {
+      const my = ++seq;
+      history.replaceState(null, "", q ? `?q=${encodeURIComponent(q)}` : location.pathname);
+      if (!pf || !q.trim()) { list.innerHTML = ""; status.textContent = ""; return; }
+      const r = now ? await pf.search(q) : await pf.debouncedSearch(q, {}, 150);
+      if (!r || my !== seq) return;
+      // Relevance from Pagefind, boosted by how many people recommend the product.
+      const data = await Promise.all(r.results.slice(0, 40).map(async (x) => ({ score: x.score, ...(await x.data()) })));
+      data.forEach((d) => { d.p = cat[d.meta.slug] || {}; d.rank = d.score * Math.log(3 + Number(d.meta.recs || 0)) ** 1.4; });
+      data.sort((a, b) => b.rank - a.rank);
+      status.textContent = `${r.results.length} product${r.results.length === 1 ? "" : "s"} match “${q}”${r.results.length > 40 ? ", top 40 shown" : ""}`;
+      list.innerHTML = data.map((d, i) => `
+        <li class="row" data-nav>
+          <span class="rank">${i + 1}.</span>
+          <div><a class="name" href="${esc(d.url)}">${d.p.icon ? `<img class="ico" src="/icons/${esc(d.meta.slug)}.ico" alt="" width="16" height="16">` : `<span class="ico mono-ico" style="width:16px;height:16px;font-size:10px">${esc((d.meta.title || "?")[0].toUpperCase())}</span>`}${esc(d.meta.title)}</a>
+            <span class="meta"> · ${esc(d.meta.recs)} recommenders${d.p.category_name ? ` · ${esc(d.p.category_name)}` : ""}</span></div>
+          <span></span>
+          ${d.p.loved && d.p.loved.length ? `<div class="why hook"><span class="muted">Loved for</span> ${esc(d.p.loved.join(", "))}</div>` : d.p.description ? `<div class="why hook">${esc(d.p.description)}</div>` : ""}
+          <div class="why sx">${d.excerpt}</div>
+        </li>`).join("");
+    }
+    input.addEventListener("input", () => run(input.value));
+    document.getElementById("sform").addEventListener("submit", (e) => { e.preventDefault(); run(input.value, true); });
+    const q = new URLSearchParams(location.search).get("q") || "";
+    input.value = q;
+    if (q) run(q, true); else input.focus();
   </script>
 </Base>
