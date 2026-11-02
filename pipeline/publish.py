@@ -150,7 +150,10 @@ def main():
         "comments": duckdb.sql(f"SELECT count(DISTINCT id) FROM read_parquet('{ROOT}/data/raw/month=*/*.parquet', union_by_name=true) "
                                "WHERE type = 2 AND time >= '2025-11-01'").fetchall()[0][0],
         "candidates": duckdb.sql(f"SELECT count(*) FROM read_parquet('{ROOT}/data/candidates.parquet')").fetchall()[0][0],
-        "labeled": con.execute("SELECT count(*) FROM hn_item").fetchone()[0],
+        "with_product": con.execute("SELECT count(*) FROM hn_item").fetchone()[0],
+        "with_ranked": con.execute(f"""SELECT count(DISTINCT m.item_id) FROM mention m JOIN product_score s ON s.product_id = m.product_id
+                                       WHERE s.distinct_recommenders >= {MIN_LIST} AND m.affiliated = 0""").fetchone()[0],
+        "labeled": labeled_count(),
         "mentions": con.execute("SELECT count(*) FROM mention").fetchone()[0],
         "products": len(summaries), "listed": sum(s["listed"] for s in summaries),
         "verdicts": len(verdicts), "window": "Nov 2025 to Oct 2026",
@@ -172,6 +175,17 @@ def main():
     print(f"published {len(summaries):,} product pages ({stats['listed']:,} listed), {len(catalog['categories'])} categories, "
           f"{stats['verdicts']} verdicts")
     return 0
+
+
+def labeled_count():
+    """Distinct comments the extractor has read (first pass and hard cases), whether or not they named a product."""
+    ids = set()
+    for f in (ROOT / "data" / "extract" / "extract_v1").glob("sonnet-*/*.jsonl"):
+        for line in f.open():
+            r = json.loads(line)
+            if not r["missing"]:
+                ids.add(r["id"])
+    return len(ids)
 
 
 def best_quote(ms, other_items=None):

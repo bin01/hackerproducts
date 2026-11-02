@@ -115,8 +115,8 @@ const sparkMax = (v: number[]) => Math.max(1, ...v);
   </div>
 
   <p class="small muted" style="margin-top:28px">
-    {stats.listed.toLocaleString("en")} products recommended by HN commenters, from {stats.labeled.toLocaleString("en")} comments, {stats.window}.
-    Full rankings: <a href="/top/">all-time top</a> · <a href="/rising/">rising</a>.
+    {stats.listed.toLocaleString("en")} products recommended by at least 3 HN commenters, in {stats.with_ranked.toLocaleString("en")} comments from {stats.window}.
+    Rankings: <a href="/top/">top</a> · <a href="/rising/">rising</a>.
   </p>
 
   <script is:inline>

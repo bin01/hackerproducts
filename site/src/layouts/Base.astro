@@ -1,6 +1,6 @@
 ---
 import "../styles/global.css";
-import { stats } from "../lib/data";
+import { stats, counts } from "../lib/data";
 
 interface Props { title?: string; description?: string; active?: string }
 const { title, description = "Software that Hacker News commenters actually recommend, with the comments that say why.", active = "" } = Astro.props;
@@ -43,8 +43,9 @@ const nav = [
   </main>
   <footer>
     <div class="wrap">
-      Built from {stats.comments.toLocaleString("en")} Hacker News comments ({stats.window}). Every quote links to its comment on news.ycombinator.com.
-      Quotes are short excerpts that link to the original comments. Not affiliated with Y Combinator or Hacker News. Comment data: <a href="https://huggingface.co/datasets/open-index/hacker-news">open-index/hacker-news</a> (ODC-BY) and the <a href="https://hn.algolia.com/api">HN Algolia API</a>.<br />
+      We scanned {counts.scanned} HN comments ({stats.window}), found {counts.candidates} likely recommendations, and Claude read {counts.read} of them.
+      Quotes are short excerpts linked to their comments on news.ycombinator.com.
+      Not affiliated with Y Combinator or Hacker News. Comment data: <a href="https://huggingface.co/datasets/open-index/hacker-news">open-index/hacker-news</a> (ODC-BY) and the <a href="https://hn.algolia.com/api">HN Algolia API</a>.<br />
       Press <kbd>?</kbd> for keyboard shortcuts · <a href="/export/products.json">JSON export</a> · <a href="/about/">How this works</a>
     </div>
   </footer>
@@ -55,7 +56,7 @@ const nav = [
       <tr><td><kbd>o</kbd> or <kbd>Enter</kbd></td><td>Open selected item</td></tr>
       <tr><td><kbd>/</kbd></td><td>Search</td></tr>
       <tr><td><kbd>g</kbd> <kbd>h</kbd></td><td>Home</td></tr>
-      <tr><td><kbd>g</kbd> <kbd>t</kbd></td><td>Top all-time</td></tr>
+      <tr><td><kbd>g</kbd> <kbd>t</kbd></td><td>Top</td></tr>
       <tr><td><kbd>g</kbd> <kbd>r</kbd></td><td>Rising</td></tr>
       <tr><td><kbd>g</kbd> <kbd>c</kbd></td><td>Categories</td></tr>
       <tr><td><kbd>t</kbd></td><td>Toggle dark mode</td></tr>

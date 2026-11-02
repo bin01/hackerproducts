@@ -27,6 +27,13 @@ export function fmtDate(d: string) {
   return new Date(d + "T00:00:00Z").toLocaleDateString("en", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
+const compact = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e4 ? `${Math.round(n / 1e3)}K` : n.toLocaleString("en");
+export const counts = {
+  scanned: compact(stats.comments),
+  candidates: compact(stats.candidates),
+  read: stats.labeled.toLocaleString("en"),
+};
+
 export function toMarkdown(title: string, items: Summary[], base: string) {
   return [`## ${title} (HackerProducts)`, "", ...items.map((p, i) =>
     `${i + 1}. [${p.name}](${base}/p/${p.slug}/): ${p.recommenders} HN recommenders. ${p.why}`)].join("\n");

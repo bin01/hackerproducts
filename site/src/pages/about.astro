@@ -11,7 +11,7 @@ const f = (n: number) => n.toLocaleString("en");
     <ol>
       <li><b>Ingest.</b> {f(stats.comments)} comments from the open-index/hacker-news dataset and the Algolia HN API.</li>
       <li><b>Prefilter.</b> Rules keep comments with recommendation phrasing ("I use", "switched to", "highly recommend"), links to non-news sites, or a place in an Ask HN thread about tools: {f(stats.candidates)} candidates.</li>
-      <li><b>Extract.</b> Claude Sonnet labels the highest-priority candidates ({f(stats.labeled)} comments with a product so far): each product named, the commenter's stance, a verbatim quote, what they use it for, alternatives, and whether they built it. On a 500-comment check against Claude Opus, Sonnet scored 87.8% F1 and Haiku 78.9%, so Sonnet does this step.</li>
+      <li><b>Extract.</b> Claude Sonnet labels the highest-priority candidates ({f(stats.labeled)} so far, {f(stats.with_product)} of which name a product): each product named, the commenter's stance, a verbatim quote, what they use it for, alternatives, and whether they built it. On a 500-comment check against Claude Opus, Sonnet scored 87.8% F1 and Haiku 78.9%, so Sonnet does this step.</li>
       <li><b>Resolve.</b> Names are merged by link domain or GitHub repo first, then by normalized name; Sonnet reviews near-duplicates ("Postgres" and "PostgreSQL").</li>
       <li><b>Score.</b> One vote per HN user per product, their latest stance counts, warnings subtract, recent comments count more, and comments by the product's own makers are excluded.</li>
       <li><b>Synthesize.</b> For products with at least 5 recommenders, Claude Opus groups quotes into praise and caveat themes and writes the two-sentence verdict. Any clause without a citation to a real comment is rejected.</li>
@@ -19,7 +19,7 @@ const f = (n: number) => n.toLocaleString("en");
     <h2>What to keep in mind</h2>
     <ul>
       <li>Quotes are verbatim and link to the comment. "Who recommends it" uses only what the commenter said about themselves.</li>
-      <li>Only the {f(stats.labeled)} highest-priority comments have been labeled so far, so counts are lower than the real totals.</li>
+      <li>Only the {f(stats.labeled)} highest-priority of {f(stats.candidates)} candidate comments have been labeled so far, so counts are lower than the real totals.</li>
       <li>Labels come from a model and are sometimes wrong, and products with common names can be mixed up.</li>
     </ul>
     <h2>Keyboard</h2>
