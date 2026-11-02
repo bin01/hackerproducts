@@ -1,12 +1,12 @@
 ---
 import { fmtDate } from "../lib/data";
 
-interface Props { q: any }
-const { q } = Astro.props;
+interface Props { q: any; anchor?: boolean }
+const { q, anchor = true } = Astro.props;
 const label = { recommend: "recommends", neutral: "uses it", compare: "compares", warn: "warns" }[q.stance as string];
 const ctx = (q.context ? 100 : 0) + (q.quote || q.excerpt || "").length;
 ---
-<div class="hq" id={`q${q.id}`} data-stance={q.stance} data-date={q.date} data-ctx={ctx}>
+<div class="hq" id={anchor ? `q${q.id}` : undefined} data-stance={q.stance} data-date={q.date} data-ctx={ctx}>
   <div class="hq-hd">
     <a class="hq-by" href={`https://news.ycombinator.com/user?id=${q.by}`}>{q.by}</a>
     <a href={q.url} title="Open the comment on Hacker News">{fmtDate(q.date)}</a>

@@ -28,7 +28,7 @@ thread (software only, one year of comments, no Person view). This file tracks w
 ## Results (1 Nov 2026)
 - Gold set (500 comments, Opus reference): Haiku P 73.9% R 84.7% F1 78.9%; Sonnet P 89.9% R 85.8% F1 87.8%. Sonnet chosen.
 - 3,768,623 comments -> 347,262 candidates -> 25,000 labeled (Sonnet low) + 798 hard cases (Sonnet medium).
-- 22,431 mentions, 9,574 products, 574 with 3+ recommenders, 1,584 product pages, 160 Opus verdicts, 1,964 citations all resolving.
+- 22,431 mentions, 9,570 products (Claude and Claude Code split), 565 with 3+ recommenders, 1,580 product pages, 160 Opus verdicts, all citations resolving.
 
 ## Todo
 - [x] Project scaffold (git, uv)
@@ -42,3 +42,4 @@ thread (software only, one year of comments, no Person view). This file tracks w
 - [x] Synthesis
 - [x] Publish + Astro site + Pagefind
 - [x] Run locally, report URL
+- [x] Product page v2 at /p2/<slug>/ (pending choice over /p/<slug>/)

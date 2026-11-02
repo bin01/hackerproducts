@@ -301,3 +301,11 @@ details.allc[open] > summary::after { content: "Hide ↑"; }
 .p2-threads { list-style: none; padding: 0; margin: 0; font-size: 13px; }
 .p2-threads li { padding: 4px 0; border-top: 1px solid var(--rule); }
 .p2-foot { margin-top: 30px; }
+.p2-verdict sup a + a::before { content: ","; color: var(--muted); margin-right: 1px; }
+@media (max-width: 640px) {
+  .p2-verdict { font-size: 15px; }
+  .p2-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .p2-months { grid-column: 1 / 3; }
+  .p2-months .months { justify-content: space-between; }
+  .p2-months .months .m { flex: 1; }
+}

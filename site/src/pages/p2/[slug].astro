@@ -26,6 +26,9 @@ const sections = [
   ...(p.who.length ? [["who", "Who"]] : []),
   ["comments", "Comments"],
 ];
+const anchored = new Set<number>();
+const firstAnchor = (id: number) => (anchored.has(id) ? false : (anchored.add(id), true));
+const inThemes = new Set([...p.praise, ...p.caveats].flatMap((t: any) => t.quotes.map((q: any) => q.id)));
 const counts = { all: p.quotes.length, recommend: 0, warn: 0, compare: 0, neutral: 0 } as Record<string, number>;
 p.quotes.forEach((q: any) => counts[q.stance]++);
 ---
@@ -97,11 +100,11 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
             <div class="p2-theme">
               {t.label && <h3>{t.label} <span class="muted">· {t.quotes.length}</span></h3>}
               {t.summary && <p class="p2-sum">{t.summary}</p>}
-              {t.quotes.slice(0, 2).map((q: any) => <HNQuote q={q} />)}
+              {t.quotes.slice(0, 2).map((q: any) => <HNQuote q={q} anchor={firstAnchor(q.id)} />)}
               {t.quotes.length > 2 && (
                 <details class="more-q">
                   <summary>Show {t.quotes.length - 2} more</summary>
-                  {t.quotes.slice(2).map((q: any) => <HNQuote q={q} />)}
+                  {t.quotes.slice(2).map((q: any) => <HNQuote q={q} anchor={firstAnchor(q.id)} />)}
                 </details>
               )}
             </div>
@@ -141,7 +144,7 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
     {p.makers.length > 0 && (
       <section class="p2-sec p2-makers">
         <h2>From the makers <span class="muted small">not counted in the ranking</span></h2>
-        {p.makers.map((q: any) => <HNQuote q={q} />)}
+        {p.makers.map((q: any) => <HNQuote q={q} anchor={firstAnchor(q.id)} />)}
       </section>
     )}
 
@@ -157,7 +160,7 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
           <button type="button" class="chip" data-sort="ctx">Most context</button>
         </div>
         <div class="clist">
-          {p.quotes.map((q: any) => <HNQuote q={q} />)}
+          {p.quotes.map((q: any) => <HNQuote q={q} anchor={!inThemes.has(q.id) && firstAnchor(q.id)} />)}
         </div>
       </details>
     </section>
@@ -180,10 +183,13 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
     (() => {
       const box = document.querySelector(".allc");
       if (!box) return;
-      // A verdict citation pointing into the collapsed list opens it first.
+      // A verdict citation pointing into a collapsed section opens it first.
       const openFor = () => {
         const t = location.hash && document.querySelector(location.hash);
-        if (t && box.contains(t)) { box.open = true; t.scrollIntoView({ block: "center" }); }
+        if (!t) return;
+        let hidden = false;
+        for (let d = t.closest("details"); d; d = d.parentElement.closest("details")) if (!d.open) { d.open = true; hidden = true; }
+        if (hidden) t.scrollIntoView({ block: "center" });
       };
       window.addEventListener("hashchange", openFor);
       openFor();
