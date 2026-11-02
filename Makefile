@@ -2,7 +2,7 @@
 TOP ?= 25000
 SYNTH_MIN ?= 5
 
-.PHONY: all ingest prefilter gold extract hardcases resolve score synth publish site serve
+.PHONY: all ingest prefilter gold extract hardcases resolve score synth publish site serve deploy
 
 all: ingest prefilter extract hardcases resolve score synth publish site
 
@@ -45,3 +45,8 @@ site:
 
 serve:
 	cd site && npm run preview
+
+# Build and publish to Cloudflare Pages (project "hackerproducts", production branch main).
+deploy: site
+	cd site && npx --yes wrangler pages project list | grep -q '^│ hackerproducts ' || npx --yes wrangler pages project create hackerproducts --production-branch main
+	cd site && npx --yes wrangler pages deploy dist --project-name hackerproducts --branch main --commit-dirty=true
