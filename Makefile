@@ -32,7 +32,7 @@ score:
 	uv run pipeline/score.py
 
 synth:
-	uv run pipeline/synth.py --min $(SYNTH_MIN)
+	uv run pipeline/synth.py --min $(SYNTH_MIN) --limit 5000 --workers 8
 
 publish:
 	uv run pipeline/official.py
