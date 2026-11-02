@@ -96,7 +96,7 @@ const sparkMax = (v: number[]) => Math.max(1, ...v);
     ))}
   </div>
 
-  <h2>Top in category <span class="muted small">a different 5 categories each day</span></h2>
+  <h2>Top in category</h2>
   <div id="shelves">
     {shelves.map((c, i) => (
       <section class="shelfrow" data-shelf={c.slug} data-ai={AI.has(c.slug) ? "1" : "0"} hidden={!initial.includes(c.slug)}>
