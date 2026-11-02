@@ -26,6 +26,8 @@ const dumpKB = Math.round(statSync("public/export/products.json").size / 1024).t
     </ul>
     <h2>Keyboard</h2>
     <p><kbd>j</kbd>/<kbd>k</kbd> move through lists, <kbd>o</kbd> opens, <kbd>/</kbd> searches, <kbd>?</kbd> shows everything.</p>
+    <h2 id="privacy">Privacy</h2>
+    <p>No accounts and no cookies. The only outside request is Cloudflare's cookieless Web Analytics beacon (static.cloudflareinsights.com), which counts page views; product icons and everything else are served from this site.</p>
     <h2 id="data">Data</h2>
     <p>Comments come from the <a href="https://huggingface.co/datasets/open-index/hacker-news">open-index/hacker-news</a> dataset (ODC-BY license) and the <a href="https://hn.algolia.com/api">HN Algolia API</a>. Quotes are short excerpts, each linked to its comment on news.ycombinator.com. HackerProducts is an independent project, not affiliated with Y Combinator or Hacker News.</p>
     <p>Everything is static. Each list has a small "Download JSON" button. The full dump of all ranked products is <a href="/export/products.json" download="hackerproducts-products.json">products.json</a> ({dumpKB} KB), and each product's data is at <code>/export/p/&lt;slug&gt;.json</code>.</p>
