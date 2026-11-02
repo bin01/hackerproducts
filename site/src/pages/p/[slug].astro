@@ -1,55 +1,78 @@
 ---
 import Base from "../../layouts/Base.astro";
-import Quote from "../../components/Quote.astro";
+import Icon from "../../components/Icon.astro";
+import HNQuote from "../../components/HNQuote.astro";
 import { products, product, monthLabel, fmtDate } from "../../lib/data";
+import catalog from "../../data/catalog.json";
 
 export function getStaticPaths() {
   return products.map((p) => ({ params: { slug: p.slug } }));
 }
 const p = product(Astro.params.slug!);
+const bySlug = Object.fromEntries(products.map((x) => [x.slug, x]));
 const months = Object.keys(p.sentiment_by_month);
-const peak = Math.max(1, ...months.map((m) => Object.values(p.sentiment_by_month[m] as Record<string, number>).reduce((a, b) => a + b, 0)));
 const stances = ["recommend", "neutral", "compare", "warn"] as const;
+const peak = Math.max(1, ...months.map((m) => stances.reduce((a, s) => a + (p.sentiment_by_month[m][s] || 0), 0)));
 const host = p.official_url ? p.official_url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : "";
 let n = 0;
 const cites = (p.verdict || []).map((c: any) => c.cites.map((q: any) => ({ ...q, n: ++n })));
+const debated = new Set(catalog.home.debates.flatMap((d: any) => d.sides.map((s: any) => s.slug)));
+const inDebate = (slug: string) => debated.has(slug) && debated.has(p.slug);
+const sections = [
+  ["verdict", "Verdict"],
+  ["praise", "Praise"],
+  ["caveats", "Caveats"],
+  ...(p.compared.length ? [["compared", "Compared"]] : []),
+  ...(p.who.length ? [["who", "Who"]] : []),
+  ["comments", "Comments"],
+];
+const anchored = new Set<number>();
+const firstAnchor = (id: number) => (anchored.has(id) ? false : (anchored.add(id), true));
+const inThemes = new Set([...p.praise, ...p.caveats].flatMap((t: any) => t.quotes.map((q: any) => q.id)));
+const counts = { all: p.quotes.length, recommend: 0, warn: 0, compare: 0, neutral: 0 } as Record<string, number>;
+p.quotes.forEach((q: any) => counts[q.stance]++);
 ---
 <Base title={p.name} description={p.why || `What Hacker News commenters say about ${p.name}.`}>
-  <article data-pagefind-body>
-    <div class="ph">
-      <div class="mono" aria-hidden="true">{p.name.slice(0, 1).toUpperCase()}</div>
-      <div>
-        <h1 data-pagefind-meta="title" data-pagefind-weight="10">{p.name}</h1>
-        {p.description && <p data-pagefind-weight="5">{p.description}</p>}
-        <span data-pagefind-filter={`category:${p.category_name}`} data-pagefind-meta={`recs:${p.recommenders}`}></span><span data-pagefind-meta={`slug:${p.slug}`}></span>
-        <div class="facts" data-pagefind-ignore>
-          <a href={`/c/${p.category}/`}>{p.category_name}</a>
-          {p.pricing && p.pricing !== "unknown" && <span>{p.pricing}</span>}
-          {host && <a href={p.official_url} rel="nofollow noopener">{host} ↗</a>}
-          {p.aliases.length > 1 && <span>also written {p.aliases.slice(1, 4).join(", ")}</span>}
+  <nav class="pnav" aria-label="On this page">
+    <span class="pnav-name"><Icon p={p} />{p.name}</span>
+    {sections.map(([id, label]) => <a href={`#${id}`}>{label}</a>)}
+  </nav>
+
+  <article class="p2" data-pagefind-body>
+    <header class="p2-hero" id="verdict">
+      <div class="p2-id">
+        <Icon p={p} size={48} />
+        <div>
+          <h1 data-pagefind-meta="title" data-pagefind-weight="10">{p.name}</h1>
+          {p.description && <p class="p2-desc" data-pagefind-weight="5">{p.description}</p>}
+          <span data-pagefind-filter={`category:${p.category_name}`} data-pagefind-meta={`recs:${p.recommenders}`}></span><span data-pagefind-meta={`slug:${p.slug}`}></span>
+          <div class="p2-meta" data-pagefind-ignore>
+            <a class="chip" href={`/c/${p.category}/`}>{p.category_name}</a>
+            {p.pricing && p.pricing !== "unknown" && <span class="chip quiet">{p.pricing}</span>}
+            {host && <a class="p2-site" href={p.official_url} rel="nofollow noopener">{host.length > 40 ? host.slice(0, 38) + "…" : host} ↗</a>}
+          </div>
         </div>
       </div>
-    </div>
 
-    {p.verdict ? (
-      <div class="verdict" data-pagefind-weight="3">
-        <span class="label">The HN verdict</span>
-        {p.verdict.map((c: any, i: number) => (
-          <>{c.text}<sup>{cites[i].map((q: any) => <a href={`#q${q.id}`} title={`${q.by}, ${q.date}: ${q.quote || q.excerpt.slice(0, 120)}`}>[{q.n}]</a>)}</sup></>
-        ))}
-      </div>
-    ) : (
-      <p class="empty" style="margin-top:16px" data-pagefind-ignore>{p.recommenders < 5 ? "No written verdict: fewer than 5 people recommend it so far." : "No written verdict yet."} The quotes below are what commenters said.</p>
-    )}
+      {p.verdict ? (
+        <blockquote class="p2-verdict" data-pagefind-weight="3">
+          {p.verdict.map((c: any, i: number) => (
+            <>{c.text}<sup>{cites[i].map((q: any) => <a href={`#q${q.id}`} title={`${q.by}, ${q.date}: ${q.quote || q.excerpt.slice(0, 120)}`}>{q.n}</a>)}</sup></>
+          ))}
+          <footer data-pagefind-ignore>The HN verdict, written from {n} cited comments</footer>
+        </blockquote>
+      ) : (
+        <p class="p2-noverdict" data-pagefind-ignore>{p.recommenders < 5 ? "Fewer than 5 people recommend it so far, so there's no written verdict." : "No written verdict yet."} Here is what commenters said.</p>
+      )}
+    </header>
 
-    <div class="strip" data-pagefind-ignore>
-      <div class="stat"><b>{p.recommenders}</b><span>distinct recommenders</span></div>
-      <div class="stat"><b>{p.commenters}</b><span>people with a stance</span></div>
-      {p.warners > 0 && <div class="stat"><b style="color:var(--warn)">{p.warners}</b><span>warn against it</span></div>}
-      <div class="stat"><b style="font-size:13px">{fmtDate(p.first)}</b><span>first mention in window</span></div>
-      <div class="stat"><b style="font-size:13px">{fmtDate(p.latest)}</b><span>latest mention</span></div>
-      <div>
-        <div class="months" aria-label="People with a stance per month, by stance">
+    <div class="p2-stats" data-pagefind-ignore>
+      <div><b>{p.recommenders}</b><span>recommend</span></div>
+      <div><b class:list={{ warnc: p.warners > 0 }}>{p.warners}</b><span>warn against</span></div>
+      <div><b class="sm">{fmtDate(p.first)}</b><span>first mention</span></div>
+      <div><b class="sm">{fmtDate(p.latest)}</b><span>latest mention</span></div>
+      <div class="p2-months" title="People with a stance per month">
+        <div class="months">
           {months.map((m) => {
             const v = p.sentiment_by_month[m] || {};
             return (
@@ -59,87 +82,129 @@ const cites = (p.verdict || []).map((c: any) => c.cites.map((q: any) => ({ ...q,
             );
           })}
         </div>
-        <div class="legend">
-          <span>{monthLabel(months[0])} to {monthLabel(months[months.length - 1])}</span>
-          {stances.map((s) => <span><i class={`s-${s}`} />{s}</span>)}
-        </div>
+        <span>{monthLabel(months[0])} – {monthLabel(months[months.length - 1])}</span>
       </div>
+    </div>
+
+    {(p.tags.length > 0 || p.use_cases.length > 0) && (
+      <div class="p2-tags">
+        <span class="lbl">Used for</span>
+        {[...p.tags, ...p.use_cases.slice(0, p.tags.length ? 2 : 6)].map((t: string) => <span class="chip quiet">{t}</span>)}
+      </div>
+    )}
+
+    <div class="p2-cols">
+      {[["praise", "Why people recommend it", p.praise, "No clear praise yet."], ["caveats", "Caveats and dissent", p.caveats, "No one in these comments warned against it."]].map(([id, title, themes, empty]: any) => (
+        <section id={id} class="p2-sec">
+          <h2>{title}</h2>
+          {themes.length ? themes.map((t: any) => (
+            <div class="p2-theme">
+              {t.label && <h3>{t.label} <span class="muted">· {t.quotes.length}</span></h3>}
+              {t.summary && <p class="p2-sum">{t.summary}</p>}
+              {t.quotes.slice(0, 2).map((q: any) => <HNQuote q={q} anchor={firstAnchor(q.id)} />)}
+              {t.quotes.length > 2 && (
+                <details class="more-q">
+                  <summary>Show {t.quotes.length - 2} more</summary>
+                  {t.quotes.slice(2).map((q: any) => <HNQuote q={q} anchor={firstAnchor(q.id)} />)}
+                </details>
+              )}
+            </div>
+          )) : <p class="empty" data-pagefind-ignore>{empty}</p>}
+        </section>
+      ))}
     </div>
 
     {p.compared.length > 0 && (
-      <div class="chips" aria-label="Often compared with">
-        <span class="muted small" style="align-self:center">Often compared with</span>
-        {p.compared.map((c: any) => (
-          <a class="chip" href={`/p/${c.slug}/`} title={`${c.co} comments mention both${c.switched_from ? `; ${c.switched_from} switched from ${c.name}` : ""}${c.switched_to ? `; ${c.switched_to} switched to ${c.name}` : ""}`}>
-            {c.name}{c.switched_from > 0 && <span class="muted">←{c.switched_from}</span>}{c.switched_to > 0 && <span class="muted">→{c.switched_to}</span>}
-          </a>
-        ))}
-      </div>
-    )}
-    {(p.tags.length > 0 || p.use_cases.length > 0) && (
-      <div class="chips">
-        <span class="muted small" style="align-self:center">Used for</span>
-        {p.tags.map((t: string) => <span class="chip">{t}</span>)}
-        {p.use_cases.slice(0, p.tags.length ? 3 : 6).map((t: string) => <span class="chip muted">{t}</span>)}
-      </div>
-    )}
-
-    <div class="cols">
-      <section>
-        <h2>Why people recommend it</h2>
-        {p.praise.length ? p.praise.map((t: any) => (
-          <div class="theme">
-            {t.label && <h3>{t.label}</h3>}
-            {t.summary && <p>{t.summary}</p>}
-            {t.quotes.map((q: any) => <Quote q={q} />)}
-          </div>
-        )) : <p class="empty" data-pagefind-ignore>No clear praise yet.</p>}
+      <section id="compared" class="p2-sec">
+        <h2>Often compared with</h2>
+        <div class="tiles">
+          {p.compared.slice(0, 8).map((c: any) => (
+            <a class="tile" href={`/p/${c.slug}/`}>
+              <span class="tn"><Icon p={bySlug[c.slug] || c} size={18} />{c.name}</span>
+              <span class="th">
+                {c.co} comment{c.co === 1 ? "" : "s"} mention both
+                {c.switched_from > 0 && <><br />{c.switched_from} moved from {c.name} to {p.name}</>}
+                {c.switched_to > 0 && <><br />{c.switched_to} moved from {p.name} to {c.name}</>}
+              </span>
+              {inDebate(c.slug) && <span class="tb">On the home page's Debates</span>}
+            </a>
+          ))}
+        </div>
       </section>
-      <section>
-        <h2>Caveats and dissent</h2>
-        {p.caveats.length ? p.caveats.map((t: any) => (
-          <div class="theme">
-            {t.label && <h3>{t.label}</h3>}
-            {t.summary && <p>{t.summary}</p>}
-            {t.quotes.map((q: any) => <Quote q={q} />)}
-          </div>
-        )) : <p class="empty" data-pagefind-ignore>No one in these comments warned against it.</p>}
-      </section>
-    </div>
+    )}
 
     {p.who.length > 0 && (
-      <section>
-        <h2>Who recommends it <span class="muted small">as stated in their own comment</span></h2>
-        <ul class="who">
-          {p.who.map((w: any) => (
-            <li><a href={`https://news.ycombinator.com/user?id=${w.by}`}>{w.by}</a>: {w.context} <a class="muted small" href={w.url}>{fmtDate(w.date)}</a></li>
-          ))}
-        </ul>
+      <section id="who" class="p2-sec">
+        <h2>Who recommends it <span class="muted small">in their own words</span></h2>
+        <div class="who-chips">
+          {p.who.map((w: any) => <a class="chip" href={w.url} title={`${w.by}, ${fmtDate(w.date)}`}>{w.context}</a>)}
+        </div>
       </section>
     )}
 
     {p.makers.length > 0 && (
-      <section>
+      <section class="p2-sec p2-makers">
         <h2>From the makers <span class="muted small">not counted in the ranking</span></h2>
-        {p.makers.map((q: any) => <Quote q={q} />)}
+        {p.makers.map((q: any) => <HNQuote q={q} anchor={firstAnchor(q.id)} />)}
       </section>
     )}
 
-    <section>
-      <h2>All comments <span class="muted small">newest first, {p.quotes.length} shown</span></h2>
-      {p.quotes.map((q: any) => <Quote q={q} />)}
+    <section id="comments" class="p2-sec">
+      <details class="allc">
+        <summary><h2>All comments <span class="muted small">{p.quotes.length}</span></h2></summary>
+        <div class="cfilter" role="toolbar" aria-label="Filter comments">
+          {[["all", "All"], ["recommend", "Recommends"], ["warn", "Warns"], ["compare", "Compares"], ["neutral", "Uses"]].map(([k, l]) => counts[k] > 0 && (
+            <button type="button" class:list={["chip", { on: k === "all" }]} data-filter={k}>{l} <span class="muted">{counts[k]}</span></button>
+          ))}
+          <span class="sep" />
+          <button type="button" class="chip on" data-sort="new">Newest</button>
+          <button type="button" class="chip" data-sort="ctx">Most context</button>
+        </div>
+        <div class="clist">
+          {p.quotes.map((q: any) => <HNQuote q={q} anchor={!inThemes.has(q.id) && firstAnchor(q.id)} />)}
+        </div>
+      </details>
     </section>
 
     {p.threads.length > 0 && (
-      <section>
+      <section class="p2-sec">
         <h2>Threads where it came up</h2>
-        <ul class="who">
-          {p.threads.map((t: any) => <li><a href={t.url}>{t.title}</a> <span class="muted small">· {t.mentions} mention{t.mentions === 1 ? "" : "s"}</span></li>)}
+        <ul class="p2-threads">
+          {p.threads.map((t: any) => <li><a href={t.url}>{t.title}</a> <span class="muted small">{t.mentions} mention{t.mentions === 1 ? "" : "s"}</span></li>)}
         </ul>
       </section>
     )}
-    <p class="small muted" style="margin-top:24px">
-      Data: <a href={`/export/p/${p.slug}.json`}>{p.slug}.json</a>. Quotes are verbatim; the verdict and theme labels are written by a model from these comments and every clause links to its sources.
+    <p class="small muted p2-foot" data-pagefind-ignore>
+      {p.aliases.length > 1 && <>Also written as {p.aliases.slice(1, 5).join(", ")}. </>}
+      Data: <a href={`/export/p/${p.slug}.json`}>{p.slug}.json</a>. Quotes are verbatim; the verdict and theme labels are written by a model from these comments, and every clause links to its sources.
     </p>
   </article>
+
+  <script is:inline>
+    (() => {
+      const box = document.querySelector(".allc");
+      if (!box) return;
+      // A verdict citation pointing into a collapsed section opens it first.
+      const openFor = () => {
+        const t = location.hash && document.querySelector(location.hash);
+        if (!t) return;
+        let hidden = false;
+        for (let d = t.closest("details"); d; d = d.parentElement.closest("details")) if (!d.open) { d.open = true; hidden = true; }
+        if (hidden) t.scrollIntoView({ block: "center" });
+      };
+      window.addEventListener("hashchange", openFor);
+      openFor();
+      const list = box.querySelector(".clist");
+      const items = [...list.children];
+      box.querySelectorAll("[data-filter]").forEach((b) => b.addEventListener("click", () => {
+        box.querySelectorAll("[data-filter]").forEach((x) => x.classList.toggle("on", x === b));
+        items.forEach((el) => (el.hidden = b.dataset.filter !== "all" && el.dataset.stance !== b.dataset.filter));
+      }));
+      box.querySelectorAll("[data-sort]").forEach((b) => b.addEventListener("click", () => {
+        box.querySelectorAll("[data-sort]").forEach((x) => x.classList.toggle("on", x === b));
+        const key = b.dataset.sort === "new" ? (el) => el.dataset.date : (el) => String(1e6 + Number(el.dataset.ctx)).padStart(8, "0");
+        items.sort((a, c) => key(c).localeCompare(key(a))).forEach((el) => list.appendChild(el));
+      }));
+    })();
+  </script>
 </Base>
