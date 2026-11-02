@@ -34,7 +34,11 @@ export const counts = {
   read: stats.labeled.toLocaleString("en"),
 };
 
-export function toMarkdown(title: string, items: Summary[], base: string) {
-  return [`## ${title} (HackerProducts)`, "", ...items.map((p, i) =>
-    `${i + 1}. [${p.name}](${base}/p/${p.slug}/): ${p.recommenders} HN recommenders. ${p.why}`)].join("\n");
+export function toMarkdown(title: string, items: Summary[], base: string, start = 1) {
+  return [`## ${title} (HackerProducts)`, "", ...items.map((p, i) => {
+    const hook = p.loved.length ? `Loved for ${p.loved.join(", ")}.` : "";
+    return `${start + i}. [${p.name}](${base}/p/${p.slug}/): ${p.recommenders} HN recommenders. ${hook}`.trim();
+  })].join("\n");
 }
+
+export const PAGE_SIZE = 100;

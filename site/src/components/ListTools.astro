@@ -2,19 +2,31 @@
 import type { Summary } from "../lib/data";
 import { toMarkdown } from "../lib/data";
 
-interface Props { title: string; items: Summary[]; json: string }
-const { title, items, json } = Astro.props;
-// Links stay relative here and get the page's own origin when copied, so no host is baked into the build.
-const md = toMarkdown(title, items.slice(0, 50), "");
+interface Props { title: string; items: Summary[]; json: string; start?: number }
+const { title, items, json, start = 1 } = Astro.props;
+// Only the rows shown on this page. Links stay relative and get the page's own origin when copied.
+const md = toMarkdown(title, items, "", start);
+const file = json.split("/").pop();
 ---
 <div class="btns">
   <button class="btn" data-copy={md} type="button">Copy as Markdown</button>
-  <a class="btn" href={json}>JSON</a>
+  <a class="btn" href={json} download={`hackerproducts-${file}`}>Download JSON</a>
 </div>
+<textarea class="copybox" readonly hidden aria-label="Markdown to copy"></textarea>
 <script is:inline>
   document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(b.dataset.copy.replaceAll("](/", `](${location.origin}/`)); b.textContent = "Copied"; }
-    catch (e) { b.textContent = "Copy failed"; }
-    setTimeout(() => (b.textContent = "Copy as Markdown"), 1500);
+    const text = b.dataset.copy.replaceAll("](/", `](${location.origin}/`);
+    try {
+      await navigator.clipboard.writeText(text);
+      b.textContent = "Copied";
+      setTimeout(() => (b.textContent = "Copy as Markdown"), 1500);
+    } catch (e) {
+      // Clipboard blocked (permissions, insecure context): show the text to copy by hand instead.
+      const box = b.parentElement.nextElementSibling;
+      box.value = text;
+      box.hidden = false;
+      box.select();
+      b.textContent = "Select and copy below";
+    }
   }));
 </script>

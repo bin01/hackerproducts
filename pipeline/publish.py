@@ -166,12 +166,22 @@ def main():
     }
     (DATA / "catalog.json").write_text(json.dumps(catalog))
     listed = [s for s in summaries if s["listed"]]
-    (EXPORT / "products.json").write_text(json.dumps({"generated_at": catalog["generated_at"], "stats": stats, "products": listed}, indent=1))
+    # Full dump (minified) for the About page; small per-list files for the JSON buttons.
+    (EXPORT / "products.json").write_text(json.dumps({"generated_at": catalog["generated_at"], "stats": stats, "products": listed},
+                                                     separators=(",", ":")))
+
+    def compact(items):
+        return [{"rank": i + 1, "name": x["name"], "url": f"/p/{x['slug']}/", "category": x["category_name"],
+                 "recommenders": x["recommenders"], "warners": x["warners"], "rising": x["rising"],
+                 "loved_for": x["loved"], "caveat": x["caveat"]} for i, x in enumerate(items)]
+    rising = sorted((x for x in listed if x["rising"] > 0), key=lambda x: (-x["rising"], -x["score"]))
+    (EXPORT / "top.json").write_text(json.dumps(compact(listed), indent=1))
+    (EXPORT / "rising.json").write_text(json.dumps(compact(rising), indent=1))
     (EXPORT / "p").mkdir()
     for f in (DATA / "products").glob("*.json"):
         shutil.copy(f, EXPORT / "p" / f.name)
     for c in catalog["categories"]:
-        (EXPORT / f"category-{c['slug']}.json").write_text(json.dumps([s for s in listed if s["category"] == c["slug"]], indent=1))
+        (EXPORT / f"category-{c['slug']}.json").write_text(json.dumps(compact([s for s in listed if s["category"] == c["slug"]]), indent=1))
     print(f"published {len(summaries):,} product pages ({stats['listed']:,} listed), {len(catalog['categories'])} categories, "
           f"{stats['verdicts']} verdicts")
     return 0
@@ -225,7 +235,10 @@ def home_data(con, summaries, mentions, products, themes, verdicts):
                           "description": s["description"], "recommenders": s["recommenders"], "verdict": v["text"],
                           "praise": praise, "caveat": caveat})
     picks.sort(key=lambda p: p["slug"])
-    (EXPORT / "picks.json").write_text(json.dumps(picks))
+    (EXPORT / "picks.json").write_text(json.dumps(picks))  # build-time only; the browser loads one small file per day
+    (EXPORT / "picks").mkdir(exist_ok=True)
+    for i, pk in enumerate(picks):
+        (EXPORT / "picks" / f"{i}.json").write_text(json.dumps(pk))
 
     # Debates: frequently co-mentioned listed pairs with verdicts on both sides.
     items_of = {pid: {m["item_id"] for m in ms} for pid, ms in mentions.items()}

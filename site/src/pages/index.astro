@@ -34,7 +34,7 @@ const sparkMax = (v: number[]) => Math.max(1, ...v);
   </div>
 
   <h2>Pick of the day</h2>
-  <div class="pick" id="pick">
+  <div class="pick" id="pick" data-count={picks.length}>
     <div class="pv">
       <a class="name" href={`/p/${pick.slug}/`} data-f="link">{pick.name}</a>
       <span class="muted small"> · <span data-f="meta">{pick.category_name} · {pick.recommenders} recommenders</span></span>
@@ -131,8 +131,7 @@ const sparkMax = (v: number[]) => Math.max(1, ...v);
       show.forEach((e) => { e.hidden = false; box.appendChild(e); });
     })();
     // Pick of the day changes daily without a rebuild.
-    fetch("/export/picks.json").then((r) => r.json()).then((picks) => {
-      const p = picks[Math.floor(Date.now() / 86400000) % picks.length];
+    fetch(`/export/picks/${Math.floor(Date.now() / 86400000) % Number(document.getElementById("pick").dataset.count)}.json`).then((r) => r.json()).then((p) => {
       const f = (k) => document.querySelector(`#pick [data-f="${k}"]`);
       f("link").textContent = p.name; f("link").href = `/p/${p.slug}/`;
       f("meta").textContent = `${p.category_name} · ${p.recommenders} recommenders`;

@@ -1,0 +1,20 @@
+---
+import Base from "../../layouts/Base.astro";
+import ProductList from "../../components/ProductList.astro";
+import ListTools from "../../components/ListTools.astro";
+import Pager from "../../components/Pager.astro";
+import { rising, PAGE_SIZE } from "../../lib/data";
+
+export function getStaticPaths({ paginate }: any) {
+  return paginate(rising, { pageSize: PAGE_SIZE });
+}
+const { page } = Astro.props;
+const start = page.start + 1;
+---
+<Base title={page.currentPage === 1 ? "Rising" : `Rising, page ${page.currentPage}`} active="rising">
+  <h1 style="font-size:18px">Rising <span class="muted small">{start}–{page.end + 1} of {page.total.toLocaleString("en")}</span></h1>
+  <p class="lede">Products with more recommenders in the last 90 days than their usual rate over the year before. "+N" is the number of extra recommenders.</p>
+  <ListTools title="Rising" items={page.data} json="/export/rising.json" start={start} />
+  <ProductList items={page.data} metric="rising" start={start} />
+  <Pager base="/rising" current={page.currentPage} last={page.lastPage} />
+</Base>

@@ -1,0 +1,12 @@
+---
+interface Props { base: string; current: number; last: number }
+const { base, current, last } = Astro.props;
+const href = (n: number) => (n === 1 ? `${base}/` : `${base}/${n}/`);
+---
+{last > 1 && (
+  <nav class="pager" aria-label="Pages">
+    {current > 1 && <a href={href(current - 1)} rel="prev">← Prev</a>}
+    {Array.from({ length: last }, (_, i) => i + 1).map((n) => n === current ? <span class="cur" aria-current="page">{n}</span> : <a href={href(n)}>{n}</a>)}
+    {current < last && <a href={href(current + 1)} rel="next">Next →</a>}
+  </nav>
+)}
