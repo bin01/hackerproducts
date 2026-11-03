@@ -23,19 +23,19 @@ CACHE = ROOT / "data" / "synth" / VERSION
 MAX_MENTIONS = 60
 
 
-def pick_mentions(con, pid):
+def pick_mentions(con, pid, limit=None):
     rows = con.execute("""
         SELECT m.id, m.stance, m.reason_quote, m.recommender_context, m.use_case, m.switched_from, i.by, i.time, i.text
         FROM mention m JOIN hn_item i ON i.id = m.item_id
         WHERE m.product_id = ? AND m.affiliated = 0
-        ORDER BY (m.stance IN ('recommend', 'warn')) DESC, m.quote_verbatim DESC, i.time DESC
+        ORDER BY (m.stance IN ('recommend', 'warn')) DESC, m.quote_verbatim DESC, i.time DESC, m.id
     """, (pid,)).fetchall()
     out, users = [], {}
     for r in rows:
         users[r[6]] = users.get(r[6], 0) + 1
         if users[r[6]] <= 2:
             out.append(r)
-    return out[:MAX_MENTIONS]
+    return out[:limit or MAX_MENTIONS]
 
 
 def mention_hash(mentions):
@@ -126,18 +126,33 @@ def main():
     ap.add_argument("--min", type=int, default=5, help="minimum distinct recommenders")
     ap.add_argument("--limit", type=int, default=150)
     ap.add_argument("--workers", type=int, default=3)
+    ap.add_argument("--max-mentions", type=int, default=MAX_MENTIONS, help="quotes given to the model per product")
+    ap.add_argument("--order", choices=["score", "recommenders"], default="score")
+    ap.add_argument("--export", help="write the prompts' inputs to this folder (no usernames) instead of calling a model")
+    ap.add_argument("--inputs", help="synthesize from an --export folder instead of data/hp.sqlite (e.g. in the cloud)")
     args = ap.parse_args()
     CACHE.mkdir(parents=True, exist_ok=True)
     template = (ROOT / "prompts" / f"{VERSION}.md").read_text()
-    con = sqlite3.connect(DB)
-    prods = con.execute("""
-        SELECT p.id, p.slug, p.name, c.name FROM product p JOIN product_score s ON s.product_id = p.id
-        JOIN category c ON c.id = p.category_id
-        WHERE s.distinct_recommenders >= ? ORDER BY s.weighted_score DESC LIMIT ?
-    """, (args.min, args.limit)).fetchall()
+    con = None
+    if args.inputs:
+        exported = [json.loads(line) for line in (Path(args.inputs) / "products.jsonl").open()]
+        prods = [tuple(e["product"]) for e in exported]
+        picked = {e["product"][0]: [tuple(m) for m in e["mentions"]] for e in exported}
+        args.max_mentions = exported[0]["max_mentions"] if exported else args.max_mentions
+    else:
+        con = sqlite3.connect(DB)
+        order = "s.weighted_score" if args.order == "score" else "s.distinct_recommenders"
+        prods = con.execute(f"""
+            SELECT p.id, p.slug, p.name, c.name FROM product p JOIN product_score s ON s.product_id = p.id
+            JOIN category c ON c.id = p.category_id
+            WHERE s.distinct_recommenders >= ? ORDER BY {order} DESC LIMIT ?
+        """, (args.min, args.limit)).fetchall()
+        picked = {p[0]: pick_mentions(con, p[0], args.max_mentions) for p in prods}
+    if args.export:
+        return export(Path(args.export), prods, picked, args.max_mentions, template)
     jobs = []
     for prod in prods:
-        mentions = pick_mentions(con, prod[0])
+        mentions = picked[prod[0]]
         h = mention_hash(mentions)
         f = CACHE / f"{prod[1]}.json"
         if f.exists() and json.loads(f.read_text()).get("mention_hash") == h:
@@ -155,7 +170,7 @@ def main():
                 except RuntimeError as e:
                     print(f"  {prod[2]}: failed ({e})", flush=True)
                     continue
-                out.update({"mention_hash": h, "product_id": prod[0], "version": VERSION,
+                out.update({"mention_hash": h, "product_id": prod[0], "version": VERSION, "max_mentions": args.max_mentions,
                             "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
                 f.write_text(json.dumps(out, indent=1))
                 done += 1
@@ -166,7 +181,26 @@ def main():
                 fu.cancel()
             print(f"STOPPED: usage limit ({e}). Re-run to resume; finished products are cached.", flush=True)
             return 2
-    load(con, prods)
+    if con:
+        load(con, prods)
+    return 0
+
+
+def export(folder, prods, picked, max_mentions, template):
+    """Everything synth_one needs, per product, for running synthesis elsewhere. Usernames are dropped;
+    the prompt only ever shows mention ids, dates, stances, quotes and comment text."""
+    folder.mkdir(parents=True, exist_ok=True)
+    sizes = []
+    with (folder / "products.jsonl").open("w") as f:
+        for prod in prods:
+            ms = [[r[0], r[1], r[2], r[3], r[4], r[5], None, r[7], " ".join((r[8] or "").split())[:700]]
+                  for r in picked[prod[0]]]
+            f.write(json.dumps({"product": list(prod), "max_mentions": max_mentions, "mentions": ms}) + "\n")
+            prompt = template.replace("{name}", prod[2]).replace("{category}", prod[3]) + "\n".join(fmt(r) for r in ms)
+            sizes.append(len(prompt) / 4)
+    (folder / f"{VERSION}.md").write_text(template)
+    print(f"exported {len(prods)} products to {folder}; prompt ~{sum(sizes) / max(1, len(sizes)):,.0f} tokens on average "
+          f"(max {max(sizes, default=0):,.0f}), ~{sum(sizes) / 1e6:.1f}M input tokens in total")
     return 0
 
 
@@ -180,7 +214,7 @@ def load(con, prods):
         if not f.exists():
             continue
         d = json.loads(f.read_text())
-        if d.get("mention_hash") != mention_hash(pick_mentions(con, pid)):
+        if d.get("mention_hash") != mention_hash(pick_mentions(con, pid, d.get("max_mentions", MAX_MENTIONS))):
             continue
         for pol, key in (("praise", "praise"), ("caveat", "caveats")):
             for t in d[key]:

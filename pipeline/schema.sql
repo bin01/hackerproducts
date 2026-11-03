@@ -3,7 +3,7 @@ CREATE TABLE hn_item (id INTEGER PRIMARY KEY, by TEXT, time TEXT, text TEXT, par
 CREATE TABLE category (id INTEGER PRIMARY KEY, slug TEXT UNIQUE, name TEXT, parent_id INTEGER);
 CREATE TABLE product (id INTEGER PRIMARY KEY, slug TEXT UNIQUE, name TEXT, domain TEXT, github_repo TEXT,
                       category_id INTEGER REFERENCES category(id), pricing TEXT, oss INTEGER, description TEXT,
-                      official_url TEXT, logo_url TEXT);
+                      official_url TEXT, logo_url TEXT, kind TEXT);
 CREATE TABLE alias (product_id INTEGER REFERENCES product(id), raw_name TEXT, n INTEGER);
 CREATE TABLE mention (id INTEGER PRIMARY KEY, item_id INTEGER REFERENCES hn_item(id), product_id INTEGER REFERENCES product(id),
                       raw_name TEXT, stance TEXT, reason_quote TEXT, quote_verbatim INTEGER, use_case TEXT,

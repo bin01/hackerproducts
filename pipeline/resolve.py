@@ -121,12 +121,42 @@ def normalize(r, d):
             "products": [expand(p) for p in r.get("p", [])]}
 
 
+# Distinct products that share a domain, a repo or a family name; never merged, whatever the evidence.
+KEEP_APART = [("pi", "absurd"), ("github", "githubcopilot"), ("zed", "gpui"), ("zed", "deltadb"), ("gpui", "deltadb"),
+              ("grapheneos", "vanadium")]
+
+# Model versions roll up to their family; tiers with their own name (DeepSeek V4 Flash, Qwen Code) stay apart.
+FAMILIES = [(re.compile(r"^qwen\d"), "qwen", "Qwen"), (re.compile(r"^kimi(k\d.*)?$"), "kimi", "Kimi"),
+            (re.compile(r"^glm\d[\d.x]*$"), "glm", "GLM"), (re.compile(r"^deepseekv?\d[\d.]*$"), "deepseek", "DeepSeek")]
+
+# Not software tools in the catalog's narrow sense; tagged so a single switch in publish can hide them.
+KINDS = [("game", re.compile(r"(?<![a-z])(game|video game)s?$|game store|game launcher")),
+         ("social", re.compile(r"social (network|media)|forum|community")),
+         ("streaming", re.compile(r"(music|video) streaming|streaming service|video platform")),
+         ("format", re.compile(r"(?<![a-z])(format|protocol|standard|specification|markup language)(?![a-z])"))]
+
+
+def kind_of(raw_categories):
+    c = Counter()
+    for raw in raw_categories:
+        for kind, rx in KINDS:
+            if rx.search((raw or "").lower()):
+                c[kind] += 1
+                break
+    if not c:
+        return ""
+    kind, n = c.most_common(1)[0]
+    return kind if n * 2 >= len(raw_categories) else ""
+
+
 class UF:
     def __init__(self):
         self.p = {}
+        self.members = {}
 
     def find(self, x):
         self.p.setdefault(x, x)
+        self.members.setdefault(x, {x})
         while self.p[x] != x:
             self.p[x] = self.p[self.p[x]]
             x = self.p[x]
@@ -134,8 +164,16 @@ class UF:
 
     def union(self, a, b):
         ra, rb = self.find(a), self.find(b)
-        if ra != rb:
-            self.p[max(ra, rb)] = min(ra, rb)
+        if ra == rb:
+            return
+        ma, mb = self.members[ra], self.members[rb]
+        for x, y in KEEP_APART:
+            if (x in ma and y in mb) or (y in ma and x in mb):
+                return
+        keep, drop = min(ra, rb), max(ra, rb)
+        self.p[drop] = keep
+        self.members[keep] = ma | mb
+        del self.members[drop]
 
 
 def lev(a, b):
@@ -270,11 +308,21 @@ def main():
         # Claude Code, ...); merging on it would collapse distinct products, so leave those to name matching.
         if len(nks) >= 3:
             continue
+        # Sharing a domain is only evidence when the names agree too (Postgres/PostgreSQL), not Pi/Absurd.
+        label = re.sub(r"[^a-z0-9]", "", dk.removeprefix("repo:").split("/")[-1].split(".")[0])
         nks = sorted(nks)
-        for other in nks[1:]:
-            uf.union(nks[0], other)
+        for i, a in enumerate(nks):
+            for b in nks[i + 1:]:
+                if a in b or b in a or (len(label) >= 3 and label in a and label in b):
+                    uf.union(a, b)
+    family_name = {}
     for m in raw:
         uf.find(m["nk"])
+        for rx, fk, fname in FAMILIES:
+            if rx.match(m["nk"]):
+                uf.union(fk, m["nk"])
+                family_name[fk] = fname
+                break
 
     def clusters_now():
         cl = defaultdict(list)
@@ -297,6 +345,7 @@ def main():
         if g["name"]:
             canon[tuple(g["keys"])] = g["name"]
     canon_by_root = {uf.find(keys[0]): name for keys, name in canon.items()}
+    canon_by_root.update({uf.find(fk): fname for fk, fname in family_name.items()})
 
     groups = defaultdict(list)
     for m in raw:
@@ -327,8 +376,9 @@ def main():
             con.execute("INSERT INTO alias_review(raw_name, candidate_product_ids, status, note) VALUES (?, ?, 'open', ?)",
                         (name, json.dumps([pid]), f"categories split: {dict(cats.most_common(4))}"))
             n_review += 1
-        con.execute("INSERT INTO product(id, slug, name, domain, github_repo, category_id) VALUES (?, ?, ?, ?, ?, ?)",
-                    (pid, slugify(name, used), name, None if repo else dk, repo, cat_id[top_cat]))
+        con.execute("INSERT INTO product(id, slug, name, domain, github_repo, category_id, kind) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (pid, slugify(name, used), name, None if repo else dk, repo, cat_id[top_cat],
+                     kind_of([m["p"].get("category") for m in ms])))
         for alias, c in Counter(m["name"] for m in ms).items():
             con.execute("INSERT INTO alias(product_id, raw_name, n) VALUES (?, ?, ?)", (pid, alias, c))
         for m in ms:

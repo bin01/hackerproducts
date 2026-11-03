@@ -5,6 +5,7 @@ site/src/data/products/<slug>.json   one per product page
 site/public/export/*.json            downloadable data (full catalog, per category)
 """
 import json
+import os
 import shutil
 import sqlite3
 import sys
@@ -49,7 +50,10 @@ def main():
 
     off_f = ROOT / "data" / "resolve" / "official_v1.json"
     official = json.loads(off_f.read_text()) if off_f.exists() else {}
-    paged = {pid for pid, s in scores.items() if s["distinct_commenters"] >= MIN_PAGE and s["distinct_recommenders"] >= 1}
+    # One switch for scope: EXCLUDE_KINDS=game,social,streaming,format hides those products everywhere.
+    exclude = {k for k in os.environ.get("EXCLUDE_KINDS", "").split(",") if k}
+    paged = {pid for pid, s in scores.items() if s["distinct_commenters"] >= MIN_PAGE and s["distinct_recommenders"] >= 1
+             and (products[pid]["kind"] or "") not in exclude}
 
     def quote_obj(m):
         return {"id": m["id"], "item_id": m["item_id"], "url": hn(m["item_id"]), "by": m["by"], "date": m["time"][:10],
@@ -86,6 +90,7 @@ def main():
             "loved": [t["label"] for t in themes[pid] if t["polarity"] == "praise"][:2],
             "caveat": next((t["label"] for t in themes[pid] if t["polarity"] == "caveat"), ""),
             "short_quote": best["reason_quote"] if best else "",
+            "kind": p["kind"] or "",
             "icon": (SITE / "public" / "icons" / f"{p['slug']}.ico").exists(),
         }
         summaries.append(summary)
