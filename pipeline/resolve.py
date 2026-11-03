@@ -136,6 +136,19 @@ KINDS = [("game", re.compile(r"(?<![a-z])(game|video game)s?$|game store|game la
          ("format", re.compile(r"(?<![a-z])(format|protocol|standard|specification|markup language)(?![a-z])"))]
 
 
+# Hand-checked: real tools whose raw category reads like a format or a social site.
+KIND_OVERRIDES = {"ducklake": "", "apacheiceberg": "", "apachearrow": "", "lance": "", "vortex": "", "goat": "",
+                  "discourse": "", "flarum": "", "invisionpowerboard": ""}
+
+
+def apply_kind_overrides(con):
+    for pid, name in con.execute("SELECT id, name FROM product").fetchall():
+        k = name_key(name)
+        if k in KIND_OVERRIDES:
+            con.execute("UPDATE product SET kind = ? WHERE id = ?", (KIND_OVERRIDES[k], pid))
+    con.commit()
+
+
 def kind_of(raw_categories):
     c = Counter()
     for raw in raw_categories:
@@ -394,6 +407,7 @@ def main():
     ids = sorted({m["item_id"] for m in raw})
     con.executemany("INSERT INTO hn_item(id, by, time, text, parent, story_id, story_title, parent_text) VALUES (?,?,?,?,?,?,?,?)",
                     [(i, cmap[i][1], cmap[i][2].isoformat(), cmap[i][3], cmap[i][4], cmap[i][5], cmap[i][6], cmap[i][7]) for i in ids])
+    apply_kind_overrides(con)
     con.execute("INSERT INTO mention_fts(rowid, product, quote, context) SELECT m.id, p.name, m.reason_quote, m.recommender_context FROM mention m JOIN product p ON p.id = m.product_id")
     con.commit()
     n_prod = con.execute("SELECT count(*) FROM product").fetchone()[0]

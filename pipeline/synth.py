@@ -214,18 +214,26 @@ def export(folder, prods, picked, max_mentions, template):
     return 0
 
 
-def load(con, prods):
-    """Write cached synthesis into theme/verdict and fill product metadata."""
+def load(con, prods, keep_stale=True):
+    """Write cached synthesis into theme/verdict and fill product metadata.
+
+    A verdict written from an older quote set is still loaded when every mention it cites still belongs to
+    the product (it was written from fewer quotes but every claim stays traceable); otherwise it is dropped."""
     con.execute("DELETE FROM theme")
     con.execute("DELETE FROM verdict")
-    n = 0
+    n = stale = 0
     for pid, slug, name, _ in prods:
         f = CACHE / f"{slug}.json"
         if not f.exists():
             continue
         d = json.loads(f.read_text())
         if d.get("mention_hash") != mention_hash(pick_mentions(con, pid, d.get("max_mentions", MAX_MENTIONS))):
-            continue
+            cited = {i for c in d.get("verdict", []) for i in c["cites"]} | \
+                    {i for k in ("praise", "caveats") for t in d.get(k, []) for i in t["quotes"]}
+            owned = {r[0] for r in con.execute("SELECT id FROM mention WHERE product_id = ? AND affiliated = 0", (pid,))}
+            if not keep_stale or not d.get("verdict") or not cited <= owned:
+                continue
+            stale += 1
         for pol, key in (("praise", "praise"), ("caveat", "caveats")):
             for t in d[key]:
                 con.execute("INSERT INTO theme(product_id, polarity, label, summary, mention_ids, synth_version) VALUES (?,?,?,?,?,?)",
@@ -239,7 +247,7 @@ def load(con, prods):
         con.execute("UPDATE product SET description = ?, official_url = ?, pricing = ? WHERE id = ?",
                     (d["description"], d["official_url"], d["pricing"], pid))
     con.commit()
-    print(f"loaded {n} verdicts into hp.sqlite")
+    print(f"loaded {n} verdicts into hp.sqlite ({stale} from an older quote set, all citations still valid)")
 
 
 if __name__ == "__main__":

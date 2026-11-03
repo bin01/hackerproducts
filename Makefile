@@ -1,5 +1,7 @@
 # Each stage is resumable; LLM stages skip work already cached under data/extract and data/synth.
 TOP ?= 25000
+# Hidden from the site (games stay): social networks, streaming services, formats and protocols.
+export EXCLUDE_KINDS ?= social,streaming,format
 SYNTH_MIN ?= 5
 
 .PHONY: all ingest prefilter gold extract yield extract-yield hardcases resolve score synth publish site serve deploy
