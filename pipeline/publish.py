@@ -6,6 +6,7 @@ site/public/export/*.json            downloadable data (full catalog, per catego
 """
 import json
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -23,6 +24,47 @@ EXPORT = SITE / "public" / "export"
 MONTHS = [f"{y}-{m:02d}" for y, m in [(2025, 11), (2025, 12)] + [(2026, i) for i in range(1, 11)]]
 MIN_PAGE = 2   # distinct recommenders for a product page (keeps the deploy under Cloudflare Pages' 20,000-file cap)
 MIN_LIST = 3   # distinct recommenders to appear in ranked lists
+
+
+# Repos whose name differs from the product but which are the product's real home (reviewed by hand).
+REPO_OK = {"uBlock Origin Lite", "DwarfStar", "Droid-ify", "Projectivy", "Turbo Vision", "MicroQuickJS", "bwrap", "Qwen Coder",
+           "Max", "ULID", "CoreCLR", "Synctrain", "GitHub Agentic Workflows", "Whispering", "icloudpd", "1-Bit Bonsai",
+           "llama-server", "GE-Proton", "Amla Sandbox", "Visual Pinball", "Speech Note", "claude-trace", "Google Wave",
+           "Jujutsu", "Microsoft Edit", "XLibre", "Windows Terminal", "Z-Image Turbo", "Dear ImGui", "Step Flash"}
+# Known right answers where the lookup or a stray comment link got it wrong.
+URL_FIXES = {"GPT Sol": "https://openai.com", "GPT Luna": "https://openai.com", "GPT Terra": "https://openai.com",
+             "GPT Astra": "https://openai.com", "GPT-5 Pro": "https://openai.com", "Claude Fable": "https://claude.com",
+             "Claude Cowork": "https://claude.com", "Claude Skills": "https://claude.com", "Jev": "https://typesafe.ai",
+             "GitHub Copilot": "https://github.com/features/copilot", "GitHub Actions": "https://github.com/features/actions",
+             "Muse Spark": "https://meta.ai", "Muse": "https://meta.ai", "Muse Glimmer": "https://meta.ai",
+             "Mercury": "https://www.inceptionlabs.ai", "Voxtral": "https://mistral.ai", "Nemotron": "https://www.nvidia.com"}
+
+
+def _key(s):
+    return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def _names_match(name, other):
+    """The name appears in the other string, or the other covers most of the name ("sol" is not "GPT Sol")."""
+    a, b = _key(name), _key(other)
+    return bool(a and b) and (a in b or (b in a and len(b) >= 0.6 * len(a)))
+
+
+def official_url(p, official):
+    """The product's link, dropped rather than shown when a repo or a comment's domain doesn't match the product."""
+    name = p["name"]
+    if name in URL_FIXES:
+        return URL_FIXES[name]
+    url = p["official_url"] or official.get(name)
+    if url:
+        m = re.match(r"https?://(?:www\.)?(?:github\.com|gitlab\.com|codeberg\.org)/[^/]+/([^/#?]+)", url)
+        return url if not m or name in REPO_OK or _names_match(name, m.group(1)) else ""
+    if p["github_repo"]:
+        repo = p["github_repo"].split("/", 1)[1]
+        return f"https://github.com/{repo}" if name in REPO_OK or _names_match(name, repo.split("/")[-1]) else ""
+    if p["domain"] and _names_match(name, p["domain"].split(".")[0]):
+        return f"https://{p['domain']}"
+    return ""
 
 
 def hn(item_id):
@@ -135,8 +177,7 @@ def main():
                 titles[m["story_id"]] = m["story_title"]
         detail = {
             **summary,
-            "domain": p["domain"], "github_repo": p["github_repo"], "official_url": p["official_url"] or official.get(p["name"]) or (
-                f"https://github.com/{p['github_repo'].split('/', 1)[1]}" if p["github_repo"] else (f"https://{p['domain']}" if p["domain"] else "")),
+            "domain": p["domain"], "github_repo": p["github_repo"], "official_url": official_url(p, official),
             "pricing": p["pricing"] or "", "aliases": [r[0] for r in con.execute("SELECT raw_name FROM alias WHERE product_id = ? ORDER BY n DESC", (pid,))],
             "verdict": verdict, "praise": th["praise"], "caveats": th["caveat"], "who": who[:12], "tags": tags,
             "use_cases": [u for u, _ in uc.most_common(6)], "compared": compared,

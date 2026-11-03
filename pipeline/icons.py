@@ -1,9 +1,11 @@
-"""Fetch a small icon per listed product domain into site/public/icons/<slug>.png (cached).
+"""Fetch a small icon per listed product into site/public/icons/<slug>.ico (cached).
 
-Uses DuckDuckGo's favicon service (or the GitHub owner's avatar for repo-only projects) at build time so the published site makes no third-party
-requests. Products without a domain, or whose icon is missing or a placeholder, get a monogram.
+Uses DuckDuckGo's favicon service, or the avatar of a GitHub *organization* for repo-only projects, at build time so
+the published site makes no third-party requests. A GitHub user's avatar is usually that person's face and is never
+used. Products with no icon source, or whose icon is missing or a placeholder, get a monogram.
 """
 import json
+import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -15,6 +17,17 @@ ROOT = Path(__file__).resolve().parent.parent
 CATALOG = ROOT / "site" / "src" / "data" / "catalog.json"
 OUT = ROOT / "site" / "public" / "icons"
 MISS = ROOT / "data" / "icons_missing.json"
+OWNERS = ROOT / "data" / "resolve" / "gh_owner_types.json"
+_owner_types = json.loads(OWNERS.read_text()) if OWNERS.exists() else {}
+
+
+def avatar(owner):
+    """Avatar URL for a GitHub organization; None for a personal account or when the type can't be confirmed."""
+    if owner not in _owner_types:
+        r = subprocess.run(["gh", "api", f"users/{owner}", "-q", ".type"], capture_output=True, text=True)
+        _owner_types[owner] = r.stdout.strip() if r.returncode == 0 else "unknown"
+        OWNERS.write_text(json.dumps(_owner_types, indent=0, sort_keys=True))
+    return f"https://github.com/{owner}.png?size=64" if _owner_types[owner] == "Organization" else None
 
 
 SHARED_HOSTS = {"github.com", "gitlab.com", "codeberg.org", "sr.ht", "git.sr.ht", "sourceforge.net", "google.com",
@@ -30,16 +43,15 @@ def source(p):
         h = (pu.hostname or "").removeprefix("www.")
         if h == "github.com":
             parts = [x for x in pu.path.split("/") if x]
-            return f"https://github.com/{parts[0]}.png?size=64" if parts else None
+            return avatar(parts[0]) if parts else None
         if h.endswith(".github.io"):
-            return f"https://github.com/{h.split('.')[0]}.png?size=64"
+            return avatar(h.split(".")[0])
         if h in SHARED_HOSTS:
             return None
         return f"https://icons.duckduckgo.com/ip3/{h}.ico"
     if p.get("github_repo"):
-        return f"https://github.com/{p['github_repo'].split('/')[1]}.png?size=64"
-    d = p.get("domain")
-    return None if not d or d in SHARED_HOSTS else f"https://icons.duckduckgo.com/ip3/{d}.ico"
+        return avatar(p["github_repo"].split("/")[1])
+    return None
 
 
 def fetch(client, slug, url):
