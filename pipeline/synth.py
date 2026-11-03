@@ -99,6 +99,9 @@ def parse_obj(text):
     return json.loads(s[i:j + 1])
 
 
+COST = []  # $ per model call this run (from claude -p total_cost_usd)
+
+
 def synth_one(prod, mentions, template):
     pid, slug, name, cat = prod
     ids = {r[0] for r in mentions}
@@ -107,8 +110,9 @@ def synth_one(prod, mentions, template):
     for attempt in range(2):
         p = prompt if not errors else prompt + "\n\nYour previous answer was rejected: " + "; ".join(errors[:5]) + \
             ". Fix it: every verdict clause must cite ids from the list above."
-        text, _ = llm.run(p, model="opus", effort="medium",
+        text, usage = llm.run(p, model="opus", effort="medium",
                           system="You are a careful editor who never states anything the sources do not support.")
+        COST.append(usage.get("cost_usd", 0.0))
         try:
             out = parse_obj(text)
         except (ValueError, json.JSONDecodeError):
@@ -129,6 +133,7 @@ def main():
     ap.add_argument("--max-mentions", type=int, default=MAX_MENTIONS, help="quotes given to the model per product")
     ap.add_argument("--order", choices=["score", "recommenders"], default="score")
     ap.add_argument("--export", help="write the prompts' inputs to this folder (no usernames) instead of calling a model")
+    ap.add_argument("--budget", type=float, default=0, help="stop starting new products after this many USD")
     ap.add_argument("--inputs", help="synthesize from an --export folder instead of data/hp.sqlite (e.g. in the cloud)")
     args = ap.parse_args()
     CACHE.mkdir(parents=True, exist_ok=True)
@@ -161,7 +166,11 @@ def main():
     print(f"synthesis: {len(prods)} products eligible (>= {args.min} recommenders), {len(jobs)} to (re)generate", flush=True)
     done = 0
     with ThreadPoolExecutor(args.workers) as ex:
-        futs = {ex.submit(synth_one, prod, ms, template): (prod, h, f) for prod, ms, h, f in jobs}
+        def guarded(prod, ms):
+            if args.budget and sum(COST) >= args.budget:
+                raise RuntimeError("budget reached, skipped")
+            return synth_one(prod, ms, template)
+        futs = {ex.submit(guarded, prod, ms): (prod, h, f) for prod, ms, h, f in jobs}
         try:
             for fut in as_completed(futs):
                 prod, h, f = futs[fut]
@@ -175,7 +184,8 @@ def main():
                 f.write_text(json.dumps(out, indent=1))
                 done += 1
                 flag = f" (rejected: {out['rejected'][:1]})" if out["rejected"] else ""
-                print(f"  {done}/{len(jobs)} {prod[2]}: {len(out['praise'])} praise, {len(out['caveats'])} caveats{flag}", flush=True)
+                print(f"  {done}/{len(jobs)} {prod[2]}: {len(out['praise'])} praise, {len(out['caveats'])} caveats{flag}, "
+                      f"${sum(COST):.2f}", flush=True)
         except llm.UsageLimit as e:
             for fu in futs:
                 fu.cancel()
