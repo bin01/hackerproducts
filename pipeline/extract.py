@@ -21,6 +21,7 @@ import llm  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 CANDS = ROOT / "data" / "candidates.parquet"
+SPENT = 0.0  # running $ total of this run (from claude -p total_cost_usd)
 
 
 def out_dir(prompt, model, effort):
@@ -110,8 +111,14 @@ def main():
     ap.add_argument("--no-thinking", action="store_true", help="disable extended thinking (cheaper output)")
     ap.add_argument("--scores", help="data/unlabeled_scores.npy: pick by classifier score instead of priority")
     ap.add_argument("--min-score", type=float, default=0.5)
+    ap.add_argument("--cands", help="candidates parquet to read instead of data/candidates.parquet")
+    ap.add_argument("--order", default="priority DESC, time DESC", help="ORDER BY for --top")
+    ap.add_argument("--budget", type=float, default=0, help="stop submitting new batches after this many USD")
     args = ap.parse_args()
 
+    global CANDS, SPENT
+    if args.cands:
+        CANDS = Path(args.cands).resolve()
     d = out_dir(args.prompt, args.model, args.effort)
     d.mkdir(parents=True, exist_ok=True)
     prompt_text = (ROOT / "prompts" / f"{args.prompt}.md").read_text()
@@ -127,7 +134,7 @@ def main():
         order = ",".join(str(i) for _, i in keep)
         q = f"SELECT c.* FROM read_parquet('{CANDS}') c JOIN (SELECT unnest([{order}]) AS id, generate_subscripts([{order}], 1) AS k) o USING (id) ORDER BY o.k"
     else:
-        q = f"SELECT * FROM read_parquet('{CANDS}') ORDER BY priority DESC, time DESC LIMIT {args.top}"
+        q = f"SELECT * FROM read_parquet('{CANDS}') ORDER BY {args.order} LIMIT {args.top}"
     rel = duckdb.sql(q)
     cols = rel.columns
     rows = [dict(zip(cols, r)) for r in rel.fetchall()]
@@ -140,7 +147,11 @@ def main():
     n_c = n_p = n_miss = 0
     tok_in = tok_out = 0
     with ThreadPoolExecutor(args.workers) as ex:
-        futs = [ex.submit(run_batch, b, prompt_text, args, d) for b in batches]
+        def guarded(b):
+            if args.budget and SPENT >= args.budget:
+                return 0, 0, 0, {"skipped": True}
+            return run_batch(b, prompt_text, args, d)
+        futs = [ex.submit(guarded, b) for b in batches]
         try:
             for i, f in enumerate(as_completed(futs), 1):
                 try:
@@ -148,11 +159,14 @@ def main():
                 except RuntimeError as e:
                     print(f"  batch {i}/{len(batches)} failed, will retry on the next run: {str(e)[:160]}", flush=True)
                     continue
+                if u.get("skipped"):
+                    continue
+                SPENT += u.get("cost_usd", 0.0)
                 n_c, n_p, n_miss = n_c + c, n_p + p, n_miss + m
                 tok_in += u.get("input_tokens", 0) + u.get("cache_read_input_tokens", 0) + u.get("cache_creation_input_tokens", 0)
                 tok_out += u.get("output_tokens", 0)
                 print(f"  batch {i}/{len(batches)}: {n_c:,} comments, {n_p:,} products, {n_miss} missing, "
-                      f"{tok_in / 1e6:.2f}M in / {tok_out / 1e6:.2f}M out, {time.time() - t0:.0f}s", flush=True)
+                      f"{tok_in / 1e6:.2f}M in / {tok_out / 1e6:.2f}M out, ${SPENT:.2f}, {time.time() - t0:.0f}s", flush=True)
         except llm.UsageLimit as e:
             for f in futs:
                 f.cancel()

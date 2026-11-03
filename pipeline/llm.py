@@ -38,7 +38,9 @@ def run(prompt, model="haiku", effort="low", system="You are a careful data labe
             last = text[:300] or p.stderr[:300]
             time.sleep(5 * (attempt + 1))
             continue
-        return text, d.get("usage", {})
+        usage = dict(d.get("usage", {}))
+        usage["cost_usd"] = d.get("total_cost_usd", 0.0)
+        return text, usage
     raise RuntimeError(f"claude -p failed after {retries} tries: {last}")
 
 
