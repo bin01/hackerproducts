@@ -38,7 +38,7 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
     {sections.map(([id, label]) => <a href={`#${id}`}>{label}</a>)}
   </nav>
 
-  <article class="p2" data-pagefind-body>
+  <article class="p2" data-pagefind-body={p.listed ? "" : undefined}>
     <header class="p2-hero" id="verdict">
       <div class="p2-id">
         <Icon p={p} size={48} />
@@ -176,7 +176,7 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
     )}
     <p class="small muted p2-foot" data-pagefind-ignore>
       {p.aliases.length > 1 && <>Also written as {p.aliases.slice(1, 5).join(", ")}. </>}
-      Data: <a href={`/export/p/${p.slug}.json`}>{p.slug}.json</a>. Quotes are verbatim; the verdict and theme labels are written by a model from these comments, and every clause links to its sources.
+      {p.listed && <>Data: <a href={`/export/p/${p.slug}.json`}>{p.slug}.json</a>. </>}Quotes are verbatim; the verdict and theme labels are written by a model from these comments, and every clause links to its sources.
     </p>
   </article>
 

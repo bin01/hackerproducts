@@ -21,7 +21,7 @@ SITE = ROOT / "site"
 DATA = SITE / "src" / "data"
 EXPORT = SITE / "public" / "export"
 MONTHS = [f"{y}-{m:02d}" for y, m in [(2025, 11), (2025, 12)] + [(2026, i) for i in range(1, 11)]]
-MIN_PAGE = 2   # distinct non-affiliated commenters for a product page
+MIN_PAGE = 2   # distinct recommenders for a product page (keeps the deploy under Cloudflare Pages' 20,000-file cap)
 MIN_LIST = 3   # distinct recommenders to appear in ranked lists
 
 
@@ -52,7 +52,7 @@ def main():
     official = json.loads(off_f.read_text()) if off_f.exists() else {}
     # One switch for scope: EXCLUDE_KINDS=game,social,streaming,format hides those products everywhere.
     exclude = {k for k in os.environ.get("EXCLUDE_KINDS", "").split(",") if k}
-    paged = {pid for pid, s in scores.items() if s["distinct_commenters"] >= MIN_PAGE and s["distinct_recommenders"] >= 1
+    paged = {pid for pid, s in scores.items() if s["distinct_recommenders"] >= MIN_PAGE
              and (products[pid]["kind"] or "") not in exclude}
 
     def quote_obj(m):
@@ -183,8 +183,9 @@ def main():
     (EXPORT / "top.json").write_text(json.dumps(compact(listed), indent=1))
     (EXPORT / "rising.json").write_text(json.dumps(compact(rising), indent=1))
     (EXPORT / "p").mkdir()
-    for f in (DATA / "products").glob("*.json"):
-        shutil.copy(f, EXPORT / "p" / f.name)
+    for s in summaries:
+        if s["listed"]:
+            shutil.copy(DATA / "products" / f"{s['slug']}.json", EXPORT / "p" / f"{s['slug']}.json")
     for c in catalog["categories"]:
         (EXPORT / f"category-{c['slug']}.json").write_text(json.dumps(compact([s for s in listed if s["category"] == c["slug"]]), indent=1))
     print(f"published {len(summaries):,} product pages ({stats['listed']:,} listed), {len(catalog['categories'])} categories, "
