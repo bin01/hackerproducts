@@ -97,9 +97,11 @@ def load_extractions():
     """Later runs override earlier ones for the same comment: first pass, then hard-case re-runs."""
     choice = (ROOT / "data" / "gold" / "choice.txt").read_text().strip()
     runs = {"haiku": ["haiku-low", "sonnet-low"], "sonnet": ["sonnet-low", "sonnet-medium"]}[choice]
+    # Compact-prompt labels (e.g. from cloud runs) fill in comments the first pass never read.
+    dirs = [EXTRACT.parent / "extract_v2" / "sonnet-low"] + [EXTRACT / run for run in runs]
     recs = {}
-    for run in runs:
-        for f in (EXTRACT / run).glob("*.jsonl"):
+    for d in dirs:
+        for f in d.glob("*.jsonl"):
             for line in f.open():
                 r = json.loads(line)
                 if not r["missing"]:
@@ -326,7 +328,7 @@ def main():
                          p.get("reason_quote") or "", int(bool(p.get("quote_verbatim"))), p.get("use_case") or "",
                          json.dumps(p.get("alternatives") or []), p.get("switched_from") or "",
                          p.get("recommender_context") or "", int(bool(p.get("affiliated"))), p.get("category") or "",
-                         f"extract_v1/{recs[m['item_id']]['model']}", m["conf"]))
+                         f"{recs[m['item_id']]['prompt']}/{recs[m['item_id']]['model']}", m["conf"]))
     ids = sorted({m["item_id"] for m in raw})
     con.executemany("INSERT INTO hn_item(id, by, time, text, parent, story_id, story_title, parent_text) VALUES (?,?,?,?,?,?,?,?)",
                     [(i, cmap[i][1], cmap[i][2].isoformat(), cmap[i][3], cmap[i][4], cmap[i][5], cmap[i][6], cmap[i][7]) for i in ids])

@@ -7,4 +7,5 @@ dependencies = [
     "duckdb>=2.0.0",
     "httpx>=0.28.1",
     "pyarrow>=26.0.0",
+    "scikit-learn>=1.9.1",
 ]

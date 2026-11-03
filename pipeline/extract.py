@@ -49,15 +49,36 @@ def fmt(r):
     return "\n".join(parts)
 
 
+STANCE = {"r": "recommend", "n": "neutral", "w": "warn", "c": "compare"}
+
+
+def expand(p):
+    """Map the compact extract_v2 product record onto the extract_v1 field names."""
+    if "name" in p:
+        return p
+    return {"name": p.get("n", ""), "url": p.get("u", ""), "stance": STANCE.get(p.get("s"), "neutral"),
+            "reason_quote": p.get("q", ""), "use_case": p.get("uc", ""), "alternatives": p.get("alt", []),
+            "switched_from": p.get("sf", ""), "recommender_context": p.get("ctx", ""),
+            "affiliated": bool(p.get("aff")), "category": p.get("cat", ""), "confidence": p.get("cf", 0.5)}
+
+
 def run_batch(rows, prompt_text, args, d):
     body = prompt_text + "\n\n".join(fmt(r) for r in rows)
-    text, usage = llm.run(body, model=args.model, effort=args.effort)
+    text, usage = llm.run(body, model=args.model, effort=args.effort, thinking=not args.no_thinking)
     got = {}
+    done = None
     for o in llm.parse_jsonl(text):
+        if "done" in o:
+            done = o["done"]
+            continue
         try:
-            got[int(o["id"])] = o.get("products") or []
+            got[int(o["id"])] = [expand(p) for p in o["p"]] if "p" in o else (o.get("products") or [])
         except (KeyError, TypeError, ValueError):
             continue
+    if done is not None:
+        # Compact prompts list only comments with products; a completed reply means the rest have none.
+        for r in rows:
+            got.setdefault(r["id"], [])
     by_id = {r["id"]: r for r in rows}
     out = []
     for r in rows:
@@ -86,6 +107,9 @@ def main():
     ap.add_argument("--ids", help="file with one comment id per line")
     ap.add_argument("--batch", type=int, default=100)
     ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--no-thinking", action="store_true", help="disable extended thinking (cheaper output)")
+    ap.add_argument("--scores", help="data/unlabeled_scores.npy: pick by classifier score instead of priority")
+    ap.add_argument("--min-score", type=float, default=0.5)
     args = ap.parse_args()
 
     d = out_dir(args.prompt, args.model, args.effort)
@@ -96,6 +120,12 @@ def main():
     if args.ids:
         want = [int(x) for x in Path(args.ids).read_text().split()]
         q = f"SELECT * FROM read_parquet('{CANDS}') WHERE id IN ({','.join(map(str, want))})"
+    elif args.scores:
+        import numpy as np
+        ids, sc = np.load(args.scores)
+        keep = sorted(((s, int(i)) for i, s in zip(ids, sc) if s >= args.min_score), reverse=True)[: args.top or None]
+        order = ",".join(str(i) for _, i in keep)
+        q = f"SELECT c.* FROM read_parquet('{CANDS}') c JOIN (SELECT unnest([{order}]) AS id, generate_subscripts([{order}], 1) AS k) o USING (id) ORDER BY o.k"
     else:
         q = f"SELECT * FROM read_parquet('{CANDS}') ORDER BY priority DESC, time DESC LIMIT {args.top}"
     rel = duckdb.sql(q)

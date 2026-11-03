@@ -190,7 +190,7 @@ def main():
 def labeled_count():
     """Distinct comments the extractor has read (first pass and hard cases), whether or not they named a product."""
     ids = set()
-    for f in (ROOT / "data" / "extract" / "extract_v1").glob("sonnet-*/*.jsonl"):
+    for f in (ROOT / "data" / "extract").glob("extract_v*/sonnet-*/*.jsonl"):
         for line in f.open():
             r = json.loads(line)
             if not r["missing"]:

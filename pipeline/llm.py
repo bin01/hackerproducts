@@ -1,5 +1,6 @@
 """Run a prompt through headless Claude Code on the user's subscription (no API key)."""
 import json
+import os
 import subprocess
 import time
 
@@ -12,14 +13,15 @@ class UsageLimit(Exception):
 
 
 def run(prompt, model="haiku", effort="low", system="You are a careful data labeler. Output only what is asked.",
-        timeout=900, retries=3):
+        timeout=900, retries=3, thinking=True):
     cmd = ["claude", "-p", "--model", MODELS[model], "--effort", effort, "--system-prompt", system,
            "--tools", "", "--strict-mcp-config", "--setting-sources", "", "--no-session-persistence",
            "--output-format", "json"]
     last = None
     for attempt in range(retries):
         try:
-            p = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout, cwd="/tmp")
+            env = None if thinking else {**os.environ, "MAX_THINKING_TOKENS": "0"}
+            p = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout, cwd="/tmp", env=env)
         except subprocess.TimeoutExpired:
             last = "timeout"
             continue

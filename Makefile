@@ -2,7 +2,7 @@
 TOP ?= 25000
 SYNTH_MIN ?= 5
 
-.PHONY: all ingest prefilter gold extract hardcases resolve score synth publish site serve deploy
+.PHONY: all ingest prefilter gold extract yield extract-yield hardcases resolve score synth publish site serve deploy
 
 all: ingest prefilter extract hardcases resolve score synth publish site
 
@@ -20,6 +20,13 @@ gold:
 
 extract:
 	uv run pipeline/extract.py --model $$(cat data/gold/choice.txt) --effort low --top $(TOP) --workers 5
+
+# Rank unlabeled candidates by predicted yield, then label only the best (cheaper per product found).
+yield:
+	uv run pipeline/yield_model.py
+
+extract-yield:
+	uv run pipeline/extract.py --model sonnet --effort low --prompt extract_v2 --scores data/unlabeled_scores.npy --min-score 0.5 --top $(TOP) --batch 100 --workers 10
 
 hardcases:
 	uv run pipeline/hardcases.py
