@@ -98,15 +98,27 @@ def load_extractions():
     choice = (ROOT / "data" / "gold" / "choice.txt").read_text().strip()
     runs = {"haiku": ["haiku-low", "sonnet-low"], "sonnet": ["sonnet-low", "sonnet-medium"]}[choice]
     # Compact-prompt labels (e.g. from cloud runs) fill in comments the first pass never read.
-    dirs = [EXTRACT.parent / "extract_v2" / "sonnet-low"] + [EXTRACT / run for run in runs]
+    dirs = [EXTRACT.parent / "extract_v3" / "haiku-medium", EXTRACT.parent / "extract_v2" / "sonnet-low"] + \
+           [EXTRACT / run for run in runs]
     recs = {}
     for d in dirs:
         for f in d.glob("*.jsonl"):
             for line in f.open():
-                r = json.loads(line)
-                if not r["missing"]:
+                r = normalize(json.loads(line), d)
+                if r and not r["missing"]:
                     recs[r["id"]] = r
     return recs
+
+
+def normalize(r, d):
+    """Accept extract.py records and raw compact output ({"id", "p": [...]}, or {"id"} alone for no products)."""
+    if "id" not in r:
+        return None
+    if "products" in r:
+        return r
+    from extract import expand
+    return {"id": int(r["id"]), "model": d.name, "prompt": d.parent.name, "missing": False,
+            "products": [expand(p) for p in r.get("p", [])]}
 
 
 class UF:
