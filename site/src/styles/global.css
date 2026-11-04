@@ -278,6 +278,12 @@ details.allc[open] > summary::after { content: "Hide ↑"; }
   .vt-row { grid-template-columns: 56px minmax(0, 1fr) 34px 62px; gap: 8px; }
   .vt-first { display: none; }
 }
+.lt-row { grid-template-columns: 180px minmax(0, 1fr) 84px; }
+.lt-row a { text-decoration: none; font-weight: 600; min-width: 0; }
+.vt-group { margin: 14px 0 4px; font-size: 13px; }
+.vt-group a { text-decoration: none; }
+.vline .vt-group:first-of-type { margin-top: 6px; }
+@media (max-width: 640px) { .lt-row { grid-template-columns: 104px minmax(0, 1fr) 78px; } }
 .vline { padding: 12px 0 14px; border-top: 1px solid var(--rule); }
 .vline h2 { margin: 0 0 8px; font-size: 14px; }
 .vline h2 a { text-decoration: none; }

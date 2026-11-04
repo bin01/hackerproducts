@@ -62,7 +62,12 @@ CATS = [
 MODEL_RAW = re.compile(r"(^|\s)(ai|llm|language|image|speech|speech-to-text|coding|video|local|open[- ]weight|foundation|reasoning)"
                        r"(\s.*)?\smodels?$|^(local )?llm$|^large language model|chatbot|^ai assistant$|^ai model")
 MODEL_YES = {"whisper", "kokoro"}  # hand-checked exceptions to the rule, both ways
-MODEL_NO = {"claudecowork", "grokcode"}
+# Not models: plans, APIs and app features of a model's vendor, assistants built on other vendors' models, and hosting.
+MODEL_NO = {"claudecowork", "grokcode", "grokbot", "claudepro", "claudeteam", "claudeai", "claudeartifacts", "claudeforlegal",
+            "chatgptpro", "chatgptplus", "chatgptwork", "geminiapi", "geminicanvas", "gemininotebook", "geminideepresearch",
+            "deepseekapi", "mistralapi", "mistralforge", "byteplusapi", "stepplan", "crofai", "falai", "chutes", "venice",
+            "modelscope", "marginlab", "nvidianim", "openrouterfusion", "kagiassistant", "duckai", "lumo", "confer", "chatjimmy",
+            "copilot", "microsoftcopilot", "microsoft365copilot", "moltis", "googleai"}
 
 
 # Named model lines stay separate products (Claude Opus, Gemini Flash, GPT Sol, DeepSeek V4 Pro). Point releases and
@@ -82,7 +87,38 @@ MODEL_FAMILIES = [
     (re.compile(r"^glm[\d.]*flash"), "glmflash", "GLM Flash"),
     (re.compile(r"^mistral\d+b"), "mistral", "Mistral"), (re.compile(r"^grok\d"), "grok", "Grok"),
     (re.compile(r"^mimo.*pro"), "mimopro", "MiMo Pro"), (re.compile(r"^(1bit)?bonsai"), "bonsai", "Bonsai"),
+    (re.compile(r"^k3$"), "kimi", "Kimi"), (re.compile(r"^argon$"), "gemini4argon", "Gemini 4 Argon"),
+    (re.compile(r"^lunamax"), "gptluna", "GPT Luna"), (re.compile(r"^gptlive"), "gptlive", "GPT-Live"),
+    (re.compile(r"^ornith"), "ornith", "Ornith"), (re.compile(r"^whisperlarge"), "whisper", "Whisper"),
+    (re.compile(r"^voxtral"), "voxtral", "Voxtral"),
 ]
+
+
+# A model's short name is often also another product's name. The extractor's category tells them apart, so these
+# mentions leave the model's cluster: to a named product when there is a real one, otherwise to their own small cluster.
+SHARED_NAMES = {"opus", "opuscodec", "gemini", "fable", "sol", "luna", "astra", "composer", "terra", "bonsai", "mercury", "flux",
+                "muse", "marble", "inkling", "moonshine", "needle", "argon"}
+AI_CATEGORY = re.compile(r"\b(ai|llm|llms|models?|chat|chatbot|assistant|agents?|gpt|coding|nlp|ml|machine learning|inference|"
+                         r"image gen|image generation|speech|transcription|tts|stt|asr|dictation|embeddings?|generative|neural|"
+                         r"language|voice|ocr|vision|research|genai|3d asset generation)\b", re.I)
+SHARED_RENAMES = [("opus", r"audio|codec", "Opus codec"), ("opuscodec", r"audio|codec", "Opus codec"),
+                  ("gemini", r"protocol", "Gemini protocol"), ("composer", r"package", "Composer (PHP)"),
+                  ("mercury", r"bank|treasury", "Mercury Bank"), ("flux", r"display|blue light|color|screen", "f.lux"),
+                  ("flux", r"gitops|devops|kubernetes", "Flux CD"), ("flux", r"pcb", "Flux.ai"),
+                  ("moonshine", r"game", "Moonshine (game streaming)")]
+
+
+def split_shared_names(raw):
+    moved = 0
+    for m in raw:
+        cat = (m["p"].get("category") or "").strip()
+        if m["nk"] not in SHARED_NAMES or not cat or AI_CATEGORY.search(cat):
+            continue
+        new = next((n for k, rx, n in SHARED_RENAMES if k == m["nk"] and re.search(rx, cat, re.I)), f"{m['name']} ({cat.lower()})")
+        m["name"], m["nk"] = new, "split:" + name_key(new)
+        m["dk"] = None
+        moved += 1
+    return moved
 
 
 def merge_model_families(uf, raw, canon_by_root):
@@ -424,6 +460,7 @@ def main():
 
     families = merge_model_families(uf, raw, canon_by_root)
     family_by_root = {uf.find(k): v for k, v in families.items()}
+    print(f"mentions moved off models with a shared name: {split_shared_names(raw)}")
 
     groups = defaultdict(list)
     for m in raw:

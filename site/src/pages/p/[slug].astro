@@ -23,7 +23,8 @@ const sections = [
   ["verdict", "Verdict"],
   ["praise", "Praise"],
   ["caveats", "Caveats"],
-  ...(p.versions?.length ? [["versions", "Versions"]] : []),
+  ...(p.lines?.length ? [["lines", "Tiers"]] : []),
+  ...(p.versions?.length || p.version_groups?.length ? [["versions", "Versions"]] : []),
   ...(p.compared.length ? [["compared", "Compared"]] : []),
   ...(p.who.length ? [["who", "Who"]] : []),
   ["comments", "Comments"],
@@ -50,6 +51,8 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
           <span data-pagefind-filter={`category:${p.category_name}`} data-pagefind-meta={`recs:${p.recommenders}`}></span><span data-pagefind-meta={`slug:${p.slug}`}></span>
           <div class="p2-meta" data-pagefind-ignore>
             <a class="chip" href={`/c/${p.category}/`}>{p.category_name}</a>
+            {p.family_ref && <a class="chip" href={`/p/${p.family_ref.slug}/`}>Part of {p.family_ref.name}</a>}
+            {p.runs_on && <a class="chip" href={`/p/${p.runs_on.slug}/`}>Assistant app · models: {p.runs_on.name}</a>}
             {p.pricing && p.pricing !== "unknown" && <span class="chip quiet">{p.pricing}</span>}
             {host && <a class="p2-site" href={p.official_url} rel="nofollow noopener">{host.length > 40 ? host.slice(0, 38) + "…" : host} ↗</a>}
           </div>
@@ -116,11 +119,48 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
       ))}
     </div>
 
-    {p.versions?.length > 0 && (
+    {p.lines?.length > 0 && (
+      <section id="lines" class="p2-sec" data-pagefind-ignore>
+        <h2>Tiers <span class="muted small">{p.recommenders.toLocaleString("en")} people recommend {p.name} across these; {p.own_recommenders.toLocaleString("en")} of them said just "{p.name}"</span></h2>
+        <div class="vt" role="table" aria-label={`${p.name} tiers`}>
+          <div class="vt-row lt-row vt-head" role="row">
+            <span role="columnheader">Tier</span>
+            <span role="columnheader">Sentiment</span>
+            <span role="columnheader">Recommend</span>
+          </div>
+          {p.lines.map((l: any) => (
+            <div class="vt-row lt-row" role="row">
+              <a role="cell" href={`/p/${l.slug}/`}><Icon p={l} />{l.name}</a>
+              <span role="cell" class="vt-sent">
+                <span class="vbar" title={`${l.rec} recommend · ${l.other} use or compare · ${l.warn} warn, of ${l.people} people`}>
+                  <i class="s-recommend" style={`width:${(100 * l.rec) / l.people}%`} /><i class="s-neutral" style={`width:${(100 * l.other) / l.people}%`} /><i class="s-warn" style={`width:${(100 * l.warn) / l.people}%`} />
+                </span>
+                <span class="vnums"><b class="vrec">{Math.round((100 * l.rec) / l.people)}%</b> recommend · <b class="vwarn">{Math.round((100 * l.warn) / l.people)}%</b> warn</span>
+              </span>
+              <span role="cell">{l.recommenders}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {(p.versions?.length > 0 || p.version_groups?.length > 0) && (
       <section id="versions" class="p2-sec" data-pagefind-ignore>
         <h2>By version <span class="muted small">sentiment of people who named that release, oldest release first</span></h2>
-        <VersionTable name={p.name} versions={p.versions} />
-        <p class="small muted">Versions with at least 5 people. {p.version_unnamed.toLocaleString("en")} {p.version_unnamed === 1 ? "person" : "people"} didn't name a version. Small samples swing a lot, so read the counts too. <a href="/models/versions/">Compare all models →</a></p>
+        {(p.version_groups || []).map((g: any) => (
+          <>
+            <h3 class="vt-group"><a href={`/p/${g.slug}/`}>{g.name}</a></h3>
+            <VersionTable name={g.name} versions={g.versions} href={`/p/${g.slug}/`} legend={false} />
+          </>
+        ))}
+        {p.versions?.length > 0 && (
+          <>
+            {p.version_groups?.length > 0 && <h3 class="vt-group">{p.name}, no tier named</h3>}
+            <VersionTable name={p.name} versions={p.versions} legend={false} />
+          </>
+        )}
+        <div class="legend vlegend"><span><i class="s-recommend" />recommend</span><span><i class="s-neutral" />uses or compares</span><span><i class="s-warn" />warns</span></div>
+        <p class="small muted">Versions with at least 5 people.{!p.version_groups?.length && <> {p.version_unnamed.toLocaleString("en")} {p.version_unnamed === 1 ? "person" : "people"} didn't name a version.</>} Small samples swing a lot, so read the counts too. <a href="/models/versions/">Compare all models →</a></p>
       </section>
     )}
 
@@ -244,6 +284,13 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
         setVersion(a.dataset.showVersion);
         box.scrollIntoView({ block: "start" });
       }));
+      // Links from a family page's version table arrive as ?v=4.7#comments.
+      const wanted = new URLSearchParams(location.search).get("v");
+      if (wanted && box.querySelector(`button[data-version="${CSS.escape(wanted)}"]`)) {
+        box.open = true;
+        setVersion(wanted);
+        box.scrollIntoView({ block: "start" });
+      }
       box.querySelectorAll("[data-sort]").forEach((b) => b.addEventListener("click", () => {
         box.querySelectorAll("[data-sort]").forEach((x) => x.classList.toggle("on", x === b));
         const key = b.dataset.sort === "new" ? (el) => el.dataset.date : (el) => String(1e6 + Number(el.dataset.ctx)).padStart(8, "0");

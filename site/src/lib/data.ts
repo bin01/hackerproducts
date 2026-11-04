@@ -17,7 +17,8 @@ export const months = catalog.months;
 // AI models have their own category page and home section; the main lists show everything else.
 export const AI_MODELS = "ai-models";
 export const main = listed.filter((p) => p.category !== AI_MODELS);
-export const models = listed.filter((p) => p.category === AI_MODELS);
+// One row per family: tiers such as Claude Opus have their own pages, linked from the family page.
+export const models = listed.filter((p: any) => p.category === AI_MODELS && !p.family);
 
 export const rising = [...main]
   .filter((p) => p.rising > 0)

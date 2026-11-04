@@ -7,6 +7,7 @@
 /p/gpt-5-6-sol-max/ /p/gpt-5/ 301
 /p/gpt-5-6-sol-pro/ /p/gpt-5/ 301
 /p/fable-max/ /p/claude-fable/ 301
+/p/k3/ /p/kimi/ 301
 /p/ds4-flash/ /p/deepseek-v4-flash/ 301
 /p/gemma-3n/ /p/gemma/ 301
 /p/gemma-3-27b/ /p/gemma/ 301
@@ -16,6 +17,8 @@
 /p/gemma-4-26b-a4b/ /p/gemma/ 301
 /p/gemma-4-12b/ /p/gemma/ 301
 /p/gemma-270m/ /p/gemma/ 301
+/p/luna-max/ /p/gpt-luna/ 301
+/p/whisper-large/ /p/whisper/ 301
 /p/gpt-4o/ /p/gpt-4/ 301
 /p/gpt-4-1-mini/ /p/gpt-4/ 301
 /p/gpt-4o-mini/ /p/gpt-4/ 301
@@ -35,9 +38,14 @@
 /p/glm-5-3-flash/ /p/glm-flash/ 301
 /p/mistral-7b/ /p/mistral/ 301
 /p/mistral-3-3b/ /p/mistral/ 301
+/p/argon/ /p/gemini-4-argon/ 301
 /p/mimo-v2-5-pro-ultraspeed/ /p/mimo-pro/ 301
+/p/voxtral-realtime/ /p/voxtral/ 301
 /p/bonsai-2/ /p/bonsai/ 301
 /p/1-bit-bonsai/ /p/bonsai/ 301
 /p/bonsai-8b/ /p/bonsai/ 301
 /p/bonsai-2-27b/ /p/bonsai/ 301
 /p/bonsai-27b/ /p/bonsai/ 301
+/p/ornith-1-5/ /p/ornith/ 301
+/p/ornith-1-0/ /p/ornith/ 301
+/p/gpt-live-1/ /p/gpt-live/ 301

@@ -107,6 +107,54 @@ def version_table(ms):
     return out, len(unnamed)
 
 
+# One row per model family in the AI models list. Tiers keep their own pages, linked from the family page.
+FAMILY_RULES = [
+    ("claude", r"claude-"), ("gpt", r"gpt-(?!oss)|o[134](-|$)"), ("gemini", r"gemini-"), ("deepseek", r"deepseek-"),
+    ("glm", r"glm-|z-ai$"), ("mistral", r"mistral-|ministral|devstral|codestral|voxtral|magistral|le-chat$"),
+    ("gemma", r"(diffusion|function|med|t|pali|shield)gemma|gemma-"), ("qwen", r"qwen-"), ("muse", r"muse-"), ("mimo", r"mimo-"),
+    ("nemotron", r"nemotron-"), ("nano-banana", r"nano-banana-"), ("grok", r"grok-"), ("flux", r"flux-"),
+    ("kimi", r"kimi-"), ("llama", r"llama-"), ("minimax", r"minimax-"), ("whisper", r"whisper-"), ("ornith", r"ornith-"),
+]
+ASSISTANT_OF = {"chatgpt": "gpt"}  # the consumer assistant keeps its own row; its models are in the family it names
+
+
+def family_parents(products, cats):
+    """{tier product id: family product id} for AI models."""
+    by_slug = {p["slug"]: pid for pid, p in products.items() if cats[p["category_id"]]["slug"] == MODELS}
+    out = {}
+    for slug, pid in by_slug.items():
+        for parent, rx in FAMILY_RULES:
+            if slug != parent and parent in by_slug and re.match(rx, slug):
+                out[pid] = by_slug[parent]
+                break
+    return out
+
+
+def people_stance(ms):
+    """Each person's latest stance, counted once."""
+    latest = {}
+    for m in sorted(ms, key=lambda m: m["time"]):
+        latest[m["by"]] = m["stance"]
+    st = Counter(latest.values())
+    return {"people": len(latest), "rec": st["recommend"], "warn": st["warn"], "other": st["neutral"] + st["compare"]}
+
+
+def family_rollup(ms):
+    """A family's numbers: distinct people across its tiers, versions and plain mentions, same rules as score.py."""
+    makers = {m["by"] for m in ms if m["affiliated"]}
+    ms = sorted((m for m in ms if m["by"] not in makers), key=lambda m: m["time"])
+    latest = {m["by"]: m["stance"] for m in ms}
+    months, seen = defaultdict(Counter), set()
+    for m in ms:
+        k = (m["by"], m["time"][:7])
+        if k not in seen:
+            seen.add(k)
+            months[m["time"][:7]][m["stance"]] += 1
+    return {"recommenders": len({m["by"] for m in ms if m["stance"] == "recommend"}), "commenters": len(latest),
+            "warners": sum(v == "warn" for v in latest.values()), "first": ms[0]["time"][:10], "latest": ms[-1]["time"][:10],
+            "months": {k: dict(v) for k, v in months.items()}}
+
+
 def hn(item_id):
     return f"https://news.ycombinator.com/item?id={item_id}"
 
@@ -138,6 +186,14 @@ def main():
              and (products[pid]["kind"] or "") not in exclude}
 
     is_model = False  # set per product below; quote_obj reads it
+
+    parent_of = family_parents(products, cats)
+    tiers = defaultdict(list)
+    for child, parent in parent_of.items():
+        tiers[parent].append(child)
+    rollups = {parent: family_rollup([m for q in [parent, *kids] for m in mentions[q]]) for parent, kids in tiers.items()}
+    # A family's page exists whenever the family has enough people, even if few people use its bare name.
+    paged |= {parent for parent, r in rollups.items() if r["recommenders"] >= MIN_PAGE and (products[parent]["kind"] or "") not in exclude and parent in scores}
 
     def quote_obj(m):
         return {"id": m["id"], "item_id": m["item_id"], "url": hn(m["item_id"]), "by": m["by"], "date": m["time"][:10],
@@ -178,14 +234,27 @@ def main():
             "kind": p["kind"] or "",
             "icon": (SITE / "public" / "icons" / f"{p['slug']}.ico").exists(),
         }
+        if pid in parent_of:
+            summary["family"] = products[parent_of[pid]]["slug"]
+        if pid in rollups:
+            r = rollups[pid]
+            sbm = r["months"]
+            totals = Counter()
+            for mv in sbm.values():
+                totals.update(mv)
+            summary.update(own_recommenders=s["distinct_recommenders"], recommenders=r["recommenders"], commenters=r["commenters"],
+                           warners=r["warners"], first=r["first"], latest=r["latest"], listed=r["recommenders"] >= MIN_LIST,
+                           sentiment={k: totals.get(k, 0) for k in ("recommend", "neutral", "compare", "warn")},
+                           spark=[sbm.get(mo, {}).get("recommend", 0) for mo in MONTHS],
+                           score=s["weighted_score"] + sum(scores[q]["weighted_score"] for q in tiers[pid] if q in scores))
         summaries.append(summary)
 
         is_model = cat["slug"] == MODELS
         versions, unnamed = version_table(ms) if is_model else ([], 0)
         versions = versions if len(versions) >= 2 else []
         if versions:
-            version_lines.append({"slug": p["slug"], "name": p["name"], "recommenders": s["distinct_recommenders"],
-                                  "versions": versions, "icon": summary["icon"]})
+            version_lines.append({"slug": p["slug"], "name": p["name"], "recommenders": summary["recommenders"], "unnamed": unnamed,
+                                  "family": summary.get("family"), "versions": versions, "icon": summary["icon"]})
         by_id = {m["id"]: m for m in mentions[pid]}
         verdict = None
         if v:
@@ -242,6 +311,13 @@ def main():
             "threads": [{"url": hn(sid), "title": titles[sid] or f"item {sid}", "mentions": n} for sid, n in threads.most_common(6)],
             "sentiment_by_month": {mo: sbm.get(mo, {}) for mo in MONTHS},
             "versions": versions, "version_unnamed": unnamed,
+            "family_ref": ({"slug": products[parent_of[pid]]["slug"], "name": products[parent_of[pid]]["name"]} if pid in parent_of else None),
+            "runs_on": next(({"slug": x, "name": products[q]["name"]} for x in [ASSISTANT_OF.get(p["slug"])] if x
+                             for q, o in products.items() if o["slug"] == x), None),
+            "lines": sorted(({"slug": products[q]["slug"], "name": products[q]["name"], "recommenders": scores[q]["distinct_recommenders"],
+                              "icon": (SITE / "public" / "icons" / f"{products[q]['slug']}.ico").exists(),
+                              **people_stance([m for m in mentions[q] if not m["affiliated"]])}
+                             for q in tiers.get(pid, []) if q in paged), key=lambda x: -x["recommenders"]),
             "quotes": [quote_obj(m) for m in ms if m["id"] in shown or m["id"] in cited],
         }
         (DATA / "products" / f"{p['slug']}.json").write_text(json.dumps(detail))
@@ -249,7 +325,24 @@ def main():
     # Lists rank by the number they show: distinct recommenders, ties broken by the recency-weighted score.
     summaries.sort(key=lambda s: (-s["recommenders"], -s["score"]))
     home = home_data(con, summaries, mentions, products, themes, verdicts)
-    cat_counts = Counter(s["category"] for s in summaries if s["listed"])
+    cat_counts = Counter(s["category"] for s in summaries if s["listed"] and not s.get("family"))
+    # The family page shows every tier's version table; /models/versions/ groups lines under their family.
+    line_by_slug = {x["slug"]: x for x in version_lines}
+    version_families = []
+    for x in summaries:
+        if x["category"] != MODELS or x.get("family"):
+            continue
+        own = line_by_slug.get(x["slug"])
+        kids = sorted((l for l in version_lines if l["family"] == x["slug"]), key=lambda l: -l["recommenders"])
+        if own or kids:
+            version_families.append({"slug": x["slug"], "name": x["name"], "icon": x["icon"], "recommenders": x["recommenders"],
+                                     "lines": kids + ([own] if own else [])})
+    for fam in version_families:
+        if any(l["slug"] != fam["slug"] for l in fam["lines"]):
+            f = DATA / "products" / f"{fam['slug']}.json"
+            d = json.loads(f.read_text())
+            d["version_groups"] = [l for l in fam["lines"] if l["slug"] != fam["slug"]]
+            f.write_text(json.dumps(d))
     stats = {
         "comments": duckdb.sql(f"SELECT count(DISTINCT id) FROM read_parquet('{ROOT}/data/raw/month=*/*.parquet', union_by_name=true) "
                                "WHERE type = 2 AND time >= '2025-11-01'").fetchall()[0][0],
@@ -259,7 +352,7 @@ def main():
                                        WHERE s.distinct_recommenders >= {MIN_LIST} AND m.affiliated = 0""").fetchone()[0],
         "labeled": labeled_count(),
         "mentions": con.execute("SELECT count(*) FROM mention").fetchone()[0],
-        "products": len(summaries), "listed": sum(s["listed"] for s in summaries),
+        "products": len(summaries), "listed": sum(s["listed"] and not s.get("family") for s in summaries),
         "verdicts": len(verdicts), "window": "Nov 2025 to Oct 2026",
     }
     catalog = {
@@ -267,7 +360,7 @@ def main():
         "categories": [{"slug": c["slug"], "name": c["name"], "count": cat_counts[c["slug"]]}
                        for c in sorted(cats.values(), key=lambda c: -cat_counts[c["slug"]]) if cat_counts[c["slug"]]],
         "products": summaries, "home": home,
-        "version_lines": sorted(version_lines, key=lambda x: -x["recommenders"]),
+        "version_families": sorted(version_families, key=lambda x: -x["recommenders"]),
     }
     (DATA / "catalog.json").write_text(json.dumps(catalog))
     listed = [s for s in summaries if s["listed"]]
@@ -288,7 +381,7 @@ def main():
         if s["listed"]:
             shutil.copy(DATA / "products" / f"{s['slug']}.json", EXPORT / "p" / f"{s['slug']}.json")
     for c in catalog["categories"]:
-        (EXPORT / f"category-{c['slug']}.json").write_text(json.dumps(compact([s for s in listed if s["category"] == c["slug"]]), indent=1))
+        (EXPORT / f"category-{c['slug']}.json").write_text(json.dumps(compact([s for s in listed if s["category"] == c["slug"] and not s.get("family")]), indent=1))
     # Product URLs that no longer exist because a release rolled up into its line.
     moved = con.execute("""SELECT mp.old_slug, p.slug FROM merged_product mp JOIN product p ON p.id = mp.product_id
                            WHERE mp.users >= 2""").fetchall()

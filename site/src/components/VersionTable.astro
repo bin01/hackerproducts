@@ -1,7 +1,7 @@
 ---
 import { fmtDate } from "../lib/data";
-interface Props { name: string; versions: any[] }
-const { name, versions } = Astro.props;
+interface Props { name: string; versions: any[]; href?: string; legend?: boolean }
+const { name, versions, href, legend = true } = Astro.props;
 const pct = (n: number, r: any) => Math.round((100 * n) / r.people);
 ---
 <div class="vt" role="table" aria-label={`Sentiment for ${name} by version`}>
@@ -23,8 +23,10 @@ const pct = (n: number, r: any) => Math.round((100 * n) / r.people);
       </span>
       <span role="cell">{r.people}</span>
       <span role="cell" class="vt-first muted">{fmtDate(r.first)}</span>
-      <a role="cell" class="vt-link" href="#comments" data-show-version={r.v} data-people={r.people}>Comments</a>
+      {href
+        ? <a role="cell" class="vt-link" href={`${href}?v=${encodeURIComponent(r.v)}#comments`}>Comments</a>
+        : <a role="cell" class="vt-link" href="#comments" data-show-version={r.v} data-people={r.people}>Comments</a>}
     </div>
   ))}
 </div>
-<div class="legend vlegend"><span><i class="s-recommend" />recommend</span><span><i class="s-neutral" />uses or compares</span><span><i class="s-warn" />warns</span></div>
+{legend && <div class="legend vlegend"><span><i class="s-recommend" />recommend</span><span><i class="s-neutral" />uses or compares</span><span><i class="s-warn" />warns</span></div>}
