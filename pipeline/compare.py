@@ -198,6 +198,30 @@ def _products_by_slug(self, slug):
 Ctx.products_by_slug = _products_by_slug
 
 
+OPEN_FAMILIES = {"qwen", "kimi", "glm", "deepseek", "gemma", "mimo", "mistral", "gpt-oss", "llama", "olmo", "ibm-granite", "nemotron", "minimax"}
+FAST_LINE = re.compile(r"haiku|flash|luna|composer", re.I)
+MIN_LOVE_PEOPLE = 20
+LOVE_SKIP = {"nvidia-parakeet", "GPT-4", "Gemini 3"}  # a speech model, and rows that mix several model lines
+
+
+def love(c):
+    d = c["recommend"] + c["warn"]
+    return round(100 * c["recommend"] / d) if d else None
+
+
+def love_releases(releases):
+    """Releases with enough people during their window for a love score: recommend / (recommend + warn)."""
+    out = []
+    for r in releases:
+        w = r["in_window"]
+        if not w or w["people"] < MIN_LOVE_PEOPLE or not (w["recommend"] + w["warn"]) or r["label"] in LOVE_SKIP or r["slug"] in LOVE_SKIP:
+            continue
+        out.append({"l": r["label"], "f": r["family_name"], "ln": r["line"], "slug": r["slug"], "v": r["version"], "s": r["window_start"], "e": r["window_end"],
+                    "cur": r["current"], "p": w["people"], "r": w["recommend"], "w": w["warn"], "n": w["neutral"], "c": w["compare"],
+                    "o": r["family"] in OPEN_FAMILIES, "t": "fast" if FAST_LINE.search(r["line"]) else "flag"})
+    return sorted(out, key=lambda x: x["s"])
+
+
 def quote(m, ctx, f):
     return {"name": ctx.name(f), "by": m["by"], "date": m["time"][:10], "url": f"https://news.ycombinator.com/item?id={m['item_id']}",
             "stance": m["stance"], "quote": m["reason_quote"]}
@@ -227,8 +251,8 @@ def page_data(ctx, summaries):
         r = newest(s["slug"])
         if r:
             before = [o for o in releases if o["slug"] == r["slug"] and o["in_window"] and o["in_window"]["people"] >= MIN_RELEASE and o["window_end"] == r["window_start"]]
-            row["latest"] = {"label": r["label"], "slug": r["slug"], "v": r["version"], "net": net(r["in_window"]), "people": r["in_window"]["people"],
-                             "prev": before[0]["label"] if before else None, "delta": net(r["in_window"]) - net(before[0]["in_window"]) if before else None}
+            row["latest"] = {"label": r["label"], "slug": r["slug"], "v": r["version"], "love": love(r["in_window"]), "people": r["in_window"]["people"],
+                             "prev": before[0]["label"] if before else None, "delta": love(r["in_window"]) - love(before[0]["in_window"]) if before and love(r["in_window"]) is not None and love(before[0]["in_window"]) is not None else None}
         table.append(row)
 
     families = [fam_by_slug[r["slug"]] for r in table[:14]]
@@ -284,5 +308,7 @@ def page_data(ctx, summaries):
         flow_rows.append({"key": key, "from": ctx.name(a), "to": ctx.name(b), "from_slug": ctx.slug(a), "to_slug": ctx.slug(b), "people": len(who),
                           "back": len(flows.get((b, a), ()))})
         quotes[key] = [quote(m, ctx, b) for m in ctx.fam_ms[b] if m["switched_from"] and ctx.family_key(m["switched_from"]) == a and verbatim(m)][:6]
-    return {"table": table, "buckets": [{"key": k, "label": v[0]} for k, v in BUCKETS.items()], "matrix": matrix, "pairs": pair_rows, "grid": grid,
+    loved = love_releases(releases)
+    scores = sorted(100 * x["r"] / (x["r"] + x["w"]) for x in loved)
+    return {"releases": loved, "typical": round(scores[len(scores) // 2]) if scores else 75, "table": table, "buckets": [{"key": k, "label": v[0]} for k, v in BUCKETS.items()], "matrix": matrix, "pairs": pair_rows, "grid": grid,
             "flows": flow_rows, "flow_total": sum(len(v) for v in flows.values())}, quotes

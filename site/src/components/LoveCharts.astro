@@ -1,0 +1,204 @@
+---
+import catalog from "../data/catalog.json";
+
+const c = (catalog as any).compare;
+const rows = [...c.releases].sort((a: any, b: any) => b.r / (b.r + b.w) - a.r / (a.r + a.w));
+const love = (x: any) => Math.round((100 * x.r) / (x.r + x.w));
+const payload = JSON.stringify({ releases: c.releases, typical: c.typical }).replace(/</g, "\\u003c");
+---
+<div class="lv">
+  <p class="lede"><b>Love score</b> is the share of people with an opinion who recommend it: recommend ÷ (recommend + warn). A <b>generation</b> is models released around the same time, and only comments from while each release was the newest in its line count.</p>
+
+  <div class="lv-controls">
+    <div class="lv-row" role="group" aria-label="Choose a view">
+      <span class="lv-lbl">View</span>
+      <button type="button" class="chip" data-view="rank">Ranked</button>
+      <button type="button" class="chip" data-view="map">Love map</button>
+      <button type="button" class="chip" data-view="line">By version</button>
+      <button type="button" class="chip" data-view="all">All three</button>
+    </div>
+    <div class="lv-row" id="lv-gen" role="group" aria-label="Choose a generation">
+      <span class="lv-lbl">Generation</span>
+      {[["now", "Out now"], ["q3", "Jul–Oct 2026"], ["q2", "Apr–Jun 2026"], ["q1", "Jan–Mar 2026"], ["q4", "Nov–Dec 2025"], ["all", "All"]].map(([k, l]) => <button type="button" class="chip" data-gen={k}>{l}</button>)}
+    </div>
+    <div class="lv-row" role="group" aria-label="Choose a kind of model">
+      <span class="lv-lbl">Kind</span>
+      {[["all", "All"], ["flag", "Flagship"], ["fast", "Fast tier"], ["open", "Open weights"], ["closed", "Closed"]].map(([k, l]) => <button type="button" class="chip" data-kind={k}>{l}</button>)}
+    </div>
+  </div>
+
+  <section class="lv-view" data-v="rank"><h2>Ranked within a generation</h2><div class="lv-chart" id="lv-rank"></div></section>
+  <section class="lv-view" data-v="map"><h2>Love map <span class="muted small">up is more loved, right is more people talking about it</span></h2><div class="lv-chart" id="lv-map"></div></section>
+  <section class="lv-view" data-v="line"><h2>Did each new version get better? <span class="muted small">oldest to newest, left to right; ignores the generation filter</span></h2><div class="lv-multiples" id="lv-line"></div></section>
+  <div id="lv-tip" role="status" hidden></div>
+  <noscript><p class="small muted">The charts need JavaScript. The full table is below.</p></noscript>
+
+  <details class="lv-table">
+    <summary>All the numbers</summary>
+    <div class="cmp-scroll" tabindex="0">
+      <table class="cmp-table">
+        <thead><tr><th>Release</th><th class="num">Loved</th><th class="num">Recommend</th><th class="num">Warn</th><th class="num">People</th><th>Newest from</th></tr></thead>
+        <tbody>
+          {rows.map((x: any) => (
+            <tr><th scope="row"><a href={`/p/${x.slug}/?v=${encodeURIComponent(x.v)}#comments`}>{x.l}</a></th><td class="num">{love(x)}%</td><td class="num">{x.r}</td><td class="num">{x.w}</td><td class="num">{x.p}</td><td class="small">{x.s}{x.e ? ` to ${x.e}` : " to now"}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <p class="small muted">The dashed line marks a typical release, about 75%. Releases with fewer than 20 people in their time are left out, and so are speech models and rows that mix several model lines. A release's time starts at its third mention and ends when the next release in its line appears. The data starts in November 2025, so older releases are cut off there. New releases have had less time and may still be in their honeymoon. Numbers here can differ from model pages, which count all comments ever. Open weights: {["Qwen", "Kimi", "GLM", "DeepSeek", "Gemma", "MiMo", "Mistral", "gpt-oss", "Llama"].join(", ")} and others. Fast tier: Haiku, Flash, Luna, Composer. </p>
+
+  <script type="application/json" id="lv-data" set:html={payload}></script>
+  <script is:inline>
+    (() => {
+      const D = JSON.parse(document.getElementById("lv-data").textContent);
+      const R = D.releases.map((x) => ({ ...x, sc: x.r / (x.r + x.w) }));
+      const MID = .75;
+      const NS = "http://www.w3.org/2000/svg";
+      const load = () => { try { return JSON.parse(localStorage.getItem("hp-love") || "null"); } catch { return null; } };
+      const st = { view: "rank", gen: "now", kind: "all", ...load() };
+      // A shared view looks like #map or #map,q2,open.
+      const [hv, hg, hk] = location.hash.slice(1).split(",");
+      if (["rank", "map", "line", "all"].includes(hv)) {
+        st.view = hv;
+        if (["now", "q1", "q2", "q3", "q4", "all"].includes(hg)) st.gen = hg;
+        if (["all", "flag", "fast", "open", "closed"].includes(hk)) st.kind = hk;
+      }
+      const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+      const rgb = (h) => [0, 2, 4].map((i) => parseInt(h.replace("#", "").slice(i, i + 2), 16));
+      const mix = (a, b, t) => { const A = rgb(a), B = rgb(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",")})`; };
+      const col = (s) => { const t = Math.max(-1, Math.min(1, (s - MID) / (s >= MID ? 1 - MID : MID - .3))); return t >= 0 ? mix(tok("--mid"), tok("--love"), .25 + .75 * t) : mix(tok("--mid"), tok("--hate"), .25 + .75 * -t); };
+      const pct = (v) => `${Math.round(v * 100)}%`;
+      const gen = (x) => { const m = x.s.slice(0, 7); return m < "2026-01" ? "q4" : m < "2026-04" ? "q1" : m < "2026-07" ? "q2" : "q3"; };
+      const inGen = (x) => st.gen === "all" || (st.gen === "now" ? x.cur : gen(x) === st.gen);
+      const inKind = (x) => st.kind === "all" || (st.kind === "open" ? x.o : st.kind === "closed" ? !x.o : x.t === st.kind);
+      const sel = () => R.filter((x) => inGen(x) && inKind(x));
+      const svg = (w, h, label) => { const s = document.createElementNS(NS, "svg"); s.setAttribute("viewBox", `0 0 ${w} ${h}`); s.setAttribute("width", w); s.setAttribute("height", h); s.setAttribute("role", "img"); s.setAttribute("aria-label", label); return s; };
+      const el = (p, tag, a, txt) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; p.appendChild(e); return e; };
+      const tip = document.getElementById("lv-tip");
+      const date = (s) => new Date(`${s}T00:00:00Z`).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+      const tipText = (x) => [[x.l, true], [`${pct(x.sc)} loved`, true], [`${x.r} recommend · ${x.w} warn`], [`${x.n} neutral · ${x.c} compare`], [`${x.p} people, ${date(x.s)} to ${x.e ? date(x.e) : "now"}`]];
+      const showTip = (x, ev) => {
+        tip.replaceChildren(...tipText(x).map(([t, b]) => { const d = document.createElement(b ? "b" : "div"); d.textContent = t; if (b) d.style.display = "block"; return d; }));
+        tip.hidden = false;
+        const w = tip.offsetWidth, h = tip.offsetHeight;
+        let l = ev.clientX + 14, t = ev.clientY + 14;
+        if (l + w > innerWidth - 8) l = Math.max(8, ev.clientX - w - 14);
+        if (t + h > innerHeight - 8) t = Math.max(8, ev.clientY - h - 14);
+        tip.style.left = `${l}px`; tip.style.top = `${t}px`;
+      };
+      let armed = null, lastPointer = "mouse";
+      addEventListener("pointerdown", (e) => { lastPointer = e.pointerType; }, true);
+      const mark = (g, x) => {
+        const a = el(g, "a", { href: `/p/${x.slug}/?v=${encodeURIComponent(x.v)}#comments`, "aria-label": `${x.l}: ${pct(x.sc)} loved, ${x.p} people` });
+        a.addEventListener("pointermove", (ev) => showTip(x, ev));
+        a.addEventListener("pointerleave", (ev) => { if (lastPointer !== "touch") tip.hidden = true; });
+        // First tap on a phone shows the numbers; the second opens the comments.
+        a.addEventListener("click", (ev) => { if (lastPointer === "touch" && armed !== x) { ev.preventDefault(); armed = x; showTip(x, ev); } });
+        return a;
+      };
+      const none = (c) => { const p = document.createElement("p"); p.className = "muted small"; p.textContent = "No release in this generation and kind has 20 or more people yet."; c.replaceChildren(p); };
+
+      function rank() {
+        const c = document.getElementById("lv-rank");
+        const xs = sel().sort((a, b) => b.sc - a.sc);
+        if (!xs.length) return none(c);
+        c.replaceChildren();
+        const W = Math.max(300, c.clientWidth), narrow = W < 560, lab = narrow ? 126 : 196, right = narrow ? 84 : 124, rh = 28, top = 22, H = top + xs.length * rh + 6;
+        const s = svg(W, H, "Releases ranked from most to least loved"), bw = W - lab - right, X = (v) => lab + v * bw;
+        [0, .25, .5, .75, 1].forEach((v) => { el(s, "line", { x1: X(v), x2: X(v), y1: top - 6, y2: H - 4, stroke: tok("--rule") }); el(s, "text", { x: X(v), y: 12, "text-anchor": "middle", "font-size": 11, fill: tok("--muted") }, pct(v)); });
+        el(s, "line", { x1: X(MID), x2: X(MID), y1: top - 6, y2: H - 4, stroke: tok("--muted"), "stroke-dasharray": "3 3" });
+        xs.forEach((x, i) => {
+          const y = top + i * rh, a = mark(s, x);
+          el(a, "rect", { x: 0, y, width: W, height: rh, fill: "transparent" });
+          el(a, "text", { x: lab - 8, y: y + rh / 2 + 4, "text-anchor": "end", "font-size": narrow ? 11 : 13, "font-weight": 600, fill: tok("--text") }, narrow ? x.l.replace(/^(Claude|Cursor) /, "").replace(" V4 ", " ") : x.l);
+          el(a, "rect", { x: lab, y: y + 6, width: Math.max(2, X(x.sc) - lab), height: rh - 12, rx: 3, fill: col(x.sc) });
+          el(a, "text", { x: X(x.sc) + 6, y: y + rh / 2 + 4, "font-size": 12, fill: tok("--muted") }, narrow ? `${pct(x.sc)} · ${x.p}` : `${pct(x.sc)} · ${x.p} people`);
+        });
+        c.appendChild(s);
+      }
+
+      function map() {
+        const c = document.getElementById("lv-map");
+        const xs = sel();
+        if (!xs.length) return none(c);
+        c.replaceChildren();
+        const W = Math.max(300, c.clientWidth), H = Math.min(460, Math.max(320, W * .55)), m = { l: 40, r: 14, t: 14, b: 36 };
+        const s = svg(W, H, "Love map of releases by people and love score");
+        const lo = Math.log(18), hi = Math.log(Math.max(260, ...xs.map((x) => x.p)) * 1.08);
+        const X = (p) => m.l + (Math.log(p) - lo) / (hi - lo) * (W - m.l - m.r);
+        const ymin = Math.min(.3, ...xs.map((x) => x.sc - .03));
+        const Y = (v) => m.t + (1 - (v - ymin) / (1 - ymin)) * (H - m.t - m.b);
+        for (let v = Math.ceil(ymin * 10) / 10; v <= 1.001; v += .1) { el(s, "line", { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), stroke: tok("--rule") }); el(s, "text", { x: m.l - 6, y: Y(v) + 4, "text-anchor": "end", "font-size": 11, fill: tok("--muted") }, pct(v)); }
+        el(s, "line", { x1: m.l, x2: W - m.r, y1: Y(MID), y2: Y(MID), stroke: tok("--muted"), "stroke-dasharray": "3 3" });
+        [20, 50, 100, 200].forEach((p) => { if (X(p) < W - m.r) { el(s, "line", { x1: X(p), x2: X(p), y1: m.t, y2: H - m.b, stroke: tok("--rule") }); el(s, "text", { x: X(p), y: H - m.b + 16, "text-anchor": "middle", "font-size": 11, fill: tok("--muted") }, p); } });
+        el(s, "text", { x: W - m.r, y: H - 5, "text-anchor": "end", "font-size": 11, fill: tok("--muted") }, "people talking about it →");
+        const pts = xs.slice().sort((a, b) => b.p - a.p), placed = pts.map((x) => ({ x: X(x.p) - 7, y: Y(x.sc) - 7, w: 14, h: 14 }));
+        const fits = (r) => r.x > m.l && r.x + r.w < W - m.r + 2 && r.y > 0 && r.y + r.h < H - m.b && !placed.some((p) => !(r.x + r.w < p.x || p.x + p.w < r.x || r.y + r.h < p.y || p.y + p.h < r.y));
+        pts.forEach((x) => {
+          const cx = X(x.p), cy = Y(x.sc), a = mark(s, x);
+          el(a, "circle", { cx, cy, r: 14, fill: "transparent" });
+          el(a, "circle", { cx, cy, r: 6.5, fill: x.o ? tok("--open") : tok("--closed"), stroke: tok("--bg"), "stroke-width": 2 });
+          const w = x.l.length * 6.3 + 4, h = 14;
+          for (const o of [{ x: cx + 10, y: cy - 7 }, { x: cx - 10 - w, y: cy - 7 }, { x: cx - w / 2, y: cy - 22 }, { x: cx - w / 2, y: cy + 9 }]) {
+            const r = { ...o, w, h };
+            if (fits(r)) { placed.push(r); el(s, "text", { x: r.x + 2, y: r.y + 11, "font-size": 11, fill: tok("--muted") }, x.l); break; }
+          }
+        });
+        const lg = document.createElement("div"); lg.className = "legend vlegend";
+        [["--closed", "Closed models"], ["--open", "Open weights"]].forEach(([k, t]) => { const sp = document.createElement("span"), i = document.createElement("i"); i.style.background = tok(k); sp.append(i, t); lg.append(sp); });
+        c.append(s, lg);
+      }
+
+      function line() {
+        const c = document.getElementById("lv-line");
+        const by = {};
+        R.filter(inKind).forEach((x) => (by[x.ln] ||= []).push(x));
+        const lines = Object.entries(by).filter(([, v]) => v.length >= 2).sort((a, b) => b[1].reduce((t, x) => t + x.p, 0) - a[1].reduce((t, x) => t + x.p, 0));
+        if (!lines.length) return none(c);
+        c.replaceChildren();
+        lines.forEach(([ln, v]) => {
+          v.sort((a, b) => a.s.localeCompare(b.s));
+          const box = document.createElement("div"), h = document.createElement("h3"), link = document.createElement("a");
+          link.href = `/p/${v[0].slug}/#versions`; link.textContent = ln; h.append(link); box.append(h);
+          const W = 230, H = 128, m = { l: 8, r: 8, t: 20, b: 22 }, s = svg(W, H, `${ln} love score by version`);
+          s.style.width = "100%"; s.style.height = "auto";
+          const X = (i) => m.l + 14 + (v.length === 1 ? 0 : i / (v.length - 1)) * (W - m.l - m.r - 28), Y = (t) => m.t + (1 - (t - .25) / .75) * (H - m.t - m.b);
+          el(s, "line", { x1: m.l, x2: W - m.r, y1: Y(MID), y2: Y(MID), stroke: tok("--muted"), "stroke-dasharray": "3 3" });
+          el(s, "polyline", { points: v.map((x, i) => `${X(i)},${Y(x.sc)}`).join(" "), fill: "none", stroke: tok("--muted"), "stroke-width": 2, "stroke-linejoin": "round" });
+          v.forEach((x, i) => {
+            const a = mark(s, x);
+            el(a, "circle", { cx: X(i), cy: Y(x.sc), r: 12, fill: "transparent" });
+            el(a, "circle", { cx: X(i), cy: Y(x.sc), r: 5.5, fill: col(x.sc), stroke: tok("--bg"), "stroke-width": 2 });
+            el(a, "text", { x: X(i), y: Y(x.sc) - 10, "text-anchor": "middle", "font-size": 11, fill: tok("--muted") }, pct(x.sc));
+            el(a, "text", { x: X(i), y: H - 6, "text-anchor": "middle", "font-size": 11, fill: tok("--muted") }, x.v);
+          });
+          box.append(s); c.append(box);
+        });
+      }
+
+      function draw() {
+        document.querySelectorAll("[data-view]").forEach((b) => { b.classList.toggle("on", b.dataset.view === st.view); b.setAttribute("aria-pressed", b.dataset.view === st.view); });
+        document.querySelectorAll("[data-gen]").forEach((b) => { b.classList.toggle("on", b.dataset.gen === st.gen); b.setAttribute("aria-pressed", b.dataset.gen === st.gen); });
+        document.querySelectorAll("[data-kind]").forEach((b) => { b.classList.toggle("on", b.dataset.kind === st.kind); b.setAttribute("aria-pressed", b.dataset.kind === st.kind); });
+        document.getElementById("lv-gen").hidden = st.view === "line";
+        document.querySelectorAll(".lv-view").forEach((v) => { v.hidden = st.view !== "all" && v.dataset.v !== st.view; });
+        tip.hidden = true; armed = null;
+        if (st.view === "rank" || st.view === "all") rank();
+        if (st.view === "map" || st.view === "all") map();
+        if (st.view === "line" || st.view === "all") line();
+      }
+      const set = (k, v) => { st[k] = v; try { localStorage.setItem("hp-love", JSON.stringify(st)); } catch {} history.replaceState(null, "", `#${st.view},${st.gen},${st.kind}`); draw(); };
+      document.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-view],[data-gen],[data-kind]");
+        if (b) { const k = b.dataset.view ? "view" : b.dataset.gen ? "gen" : "kind"; set(k, b.dataset[k]); }
+        else if (!e.target.closest("svg a")) { tip.hidden = true; armed = null; }
+      });
+      let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
+      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+      new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+      draw();
+    })();
+  </script>
+</div>

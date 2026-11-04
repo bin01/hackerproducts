@@ -1,6 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
 import Icon from "../../components/Icon.astro";
+import LoveCharts from "../../components/LoveCharts.astro";
 import catalog from "../../data/catalog.json";
 
 const c = (catalog as any).compare;
@@ -13,6 +14,10 @@ const pairCount = (a: string, b: string) => c.grid.counts[`${a}:${b}`] ? [c.grid
 <Base title="AI models compared" active="categories" description="All the feedback from Hacker News commenters on AI models in one page: who is recommended, what for, and who people are switching to.">
   <h1 style="font-size:18px">AI models compared</h1>
   <p class="lede">What HN commenters said about each model family from {catalog.stats.window}. Each person counts once per family. Open any number to read the comments behind it.</p>
+  <section class="cmp-sec" id="loved">
+    <h2>Which are loved</h2>
+    <LoveCharts />
+  </section>
 
   <section class="cmp-sec" id="table">
     <h2>All families</h2>
@@ -27,7 +32,7 @@ const pairCount = (a: string, b: string) => c.grid.counts[`${a}:${b}`] ? [c.grid
         <thead><tr><th>Family</th><th class="num">Recommend</th><th>Sentiment</th><th>Latest release</th><th>Praised for</th><th>Top caveat</th></tr></thead>
         <tbody>
           {c.table.map((r: any) => (
-            <tr data-people={r.recommenders} data-pct={pct(r.rec, r.people)} data-net={r.latest ? r.latest.net : -999}>
+            <tr data-people={r.recommenders} data-pct={pct(r.rec, r.people)} data-net={r.latest?.love ?? -999}>
               <th scope="row"><a href={`/p/${r.slug}/`}><Icon p={r} />{r.name}</a></th>
               <td class="num">{r.recommenders.toLocaleString("en")}</td>
               <td class="cmp-sent">
@@ -40,7 +45,7 @@ const pairCount = (a: string, b: string) => c.grid.counts[`${a}:${b}`] ? [c.grid
                 {r.latest ? (
                   <>
                     <a href={`/p/${r.latest.slug}/?v=${encodeURIComponent(r.latest.v)}#comments`}>{r.latest.label}</a>
-                    <span class="vnums">net {signed(r.latest.net)} of {r.latest.people}{r.latest.delta !== null && <> · {r.latest.delta >= 0 ? "▲" : "▼"} {signed(r.latest.delta)} vs {r.latest.prev}</>}</span>
+                    <span class="vnums">{r.latest.love}% loved, {r.latest.people} people{r.latest.delta !== null && <> · {r.latest.delta >= 0 ? "▲" : "▼"} {signed(r.latest.delta)} vs {r.latest.prev}</>}</span>
                   </>
                 ) : <span class="muted small">no release with 10+ people</span>}
               </td>
@@ -51,7 +56,7 @@ const pairCount = (a: string, b: string) => c.grid.counts[`${a}:${b}`] ? [c.grid
         </tbody>
       </table>
     </div>
-    <p class="small muted">Recommend counts anyone who recommended the family at least once. The bar uses each person's latest stance, so its % can be lower. Net is % recommend minus % warn among people commenting while that release was the newest in its line, starting from its third mention. Model pages show all-time numbers for a version, so they can differ. Praise and caveats cover each of the top 11 families across all its tiers, and are written by a model from cited comments.</p>
+    <p class="small muted">Recommend counts anyone who recommended the family at least once. The bar uses each person's latest stance, so its % can be lower. "Loved" is recommend ÷ (recommend + warn) among people commenting while that release was the newest in its line, starting from its third mention. Model pages show all-time numbers for a version, so they can differ. Praise and caveats cover each of the top 11 families across all its tiers, and are written by a model from cited comments.</p>
   </section>
 
   <section class="cmp-sec" id="best">

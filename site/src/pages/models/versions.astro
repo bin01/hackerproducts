@@ -1,40 +1,30 @@
 ---
 import Base from "../../layouts/Base.astro";
 import Icon from "../../components/Icon.astro";
+import LoveCharts from "../../components/LoveCharts.astro";
+import VersionTable from "../../components/VersionTable.astro";
 import catalog from "../../data/catalog.json";
 
-const families = catalog.version_families;
-const pct = (n: number, r: any) => Math.round((100 * n) / r.people);
+const families = (catalog as any).version_families;
 ---
-<Base title="Model sentiment by version" active="categories" description="How Hacker News commenters received each release of the major AI models.">
-  <h1 style="font-size:18px">Model sentiment by version</h1>
-  <p class="lede">How HN commenters received each release, latest first. Each bar shows the people who named that version: green recommends, grey uses or compares, red warns. Only versions with at least 5 people are shown, and the number under each bar is the sample size, so treat small ones with care. <a href="/models/compare/">Compare all models →</a> Most comments are from one year ({catalog.stats.window}).</p>
-  <div class="legend vlegend"><span><i class="s-recommend" />recommend</span><span><i class="s-neutral" />uses or compares</span><span><i class="s-warn" />warns</span></div>
-  <div class="vlines">
-    {families.map((f: any) => {
-      const single = f.lines.length === 1 && f.lines[0].slug === f.slug;
-      return (
-        <section class="vline">
-          <h2><a href={`/p/${f.slug}/#versions`}><Icon p={{ slug: f.slug, name: f.name, icon: f.icon }} />{f.name}</a></h2>
-          {f.lines.map((l: any) => (
-            <>
-              {!single && <h3 class="vt-group"><a href={`/p/${l.slug}/#versions`}>{l.slug === f.slug ? `${f.name}, no tier named` : l.name}</a></h3>}
-              <div class="vcells">
-                {l.versions.map((r: any) => (
-                  <div class="vcell" title={`${l.name} ${r.v}: ${r.rec} recommend, ${r.other} use or compare, ${r.warn} warn`}>
-                    <b>{r.v}</b>
-                    <span class="vbar">
-                      <i class="s-recommend" style={`width:${(100 * r.rec) / r.people}%`} /><i class="s-neutral" style={`width:${(100 * r.other) / r.people}%`} /><i class="s-warn" style={`width:${(100 * r.warn) / r.people}%`} />
-                    </span>
-                    <span class="vnums"><b class="vrec">{pct(r.rec, r)}%</b> <b class="vwarn">{pct(r.warn, r)}%</b></span>
-                    <span class="vn">{r.people} people</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          ))}
-        </section>
-      );
-    })}
-  </div>
+<Base title="Which AI models are loved" active="categories" description="Which AI model releases Hacker News commenters love, compared with others from the same generation.">
+  <h1 style="font-size:18px">Which AI models are loved?</h1>
+  <LoveCharts />
+  <p class="small"><a href="/models/compare/">Compare all models: best for each job, head to head, who's switching →</a></p>
+  <section class="cmp-sec" id="tables">
+    <h2>Every version, all-time numbers</h2>
+    <p class="small muted" style="margin-top:0">These count all comments that named a version, whenever they were written, so they can differ from the charts above.</p>
+    {families.map((f: any) => (
+      <details class="vt-tier">
+        <summary class="vt-group"><Icon p={f} />{f.name} <span class="muted small">{f.lines.length === 1 ? `${f.lines[0].versions.length} versions` : `${f.lines.length} lines`}</span></summary>
+        {f.lines.map((l: any) => (
+          <>
+            {!(f.lines.length === 1 && l.slug === f.slug) && <h3 class="vt-group"><a href={`/p/${l.slug}/`}>{l.slug === f.slug ? `${f.name}, no tier named` : l.name}</a></h3>}
+            <VersionTable name={l.name} versions={l.versions} href={`/p/${l.slug}/`} legend={false} />
+          </>
+        ))}
+      </details>
+    ))}
+    <div class="legend vlegend"><span><i class="s-recommend" />recommend</span><span><i class="s-neutral" />uses or compares</span><span><i class="s-warn" />warns</span></div>
+  </section>
 </Base>

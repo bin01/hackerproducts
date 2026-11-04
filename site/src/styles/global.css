@@ -11,6 +11,7 @@
   --neu: #a9a89f;
   --cmp: #c49a1a;
   --warn: #c0392b;
+  --love: #1c5cab; --hate: #c23b3a; --mid: #e4e3dc; --open: #eb6834; --closed: #2a78d6;
   --font: Verdana, Geneva, "DejaVu Sans", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
   color-scheme: light;
@@ -19,13 +20,13 @@
   :root:not([data-theme="light"]) {
     --bg: #161614; --card: #1d1d1a; --text: #e6e4dc; --muted: #9b998f; --rule: #2e2d29;
     --accent: #ff7a26; --accent-ink: #ff9a57; --sel: #2a2118; --rec: #5fb862; --neu: #6b6a63;
-    --cmp: #d8b23c; --warn: #ec6f63; color-scheme: dark;
+    --cmp: #d8b23c; --warn: #ec6f63; --love: #4a8fe0; --hate: #e66767; --mid: #383835; --open: #d95926; --closed: #3987e5; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #161614; --card: #1d1d1a; --text: #e6e4dc; --muted: #9b998f; --rule: #2e2d29;
   --accent: #ff7a26; --accent-ink: #ff9a57; --sel: #2a2118; --rec: #5fb862; --neu: #6b6a63;
-  --cmp: #d8b23c; --warn: #ec6f63; color-scheme: dark;
+  --cmp: #d8b23c; --warn: #ec6f63; --love: #4a8fe0; --hate: #e66767; --mid: #383835; --open: #d95926; --closed: #3987e5; color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -349,3 +350,23 @@ details.allc[open] > summary::after { content: "Hide ↑"; }
   .cmp-flow-bar { grid-column: 1 / -1; order: 3; }
   .cmp-flow-back { grid-column: 1 / -1; order: 4; }
 }
+
+/* Which models are loved */
+.lv-controls { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0; margin: 10px 0 14px; border-bottom: 1px solid var(--rule); display: flex; flex-direction: column; gap: 6px; }
+.lv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.lv-row[hidden], .lv-view[hidden] { display: none; }
+.lv-lbl { width: 76px; font-size: 11px; color: var(--muted); }
+.lv-controls .chip { cursor: pointer; }
+.lv-view { margin-bottom: 26px; }
+.lv-view h2 { font-size: 15px; margin: 0 0 8px; }
+.lv-chart { min-width: 0; }
+.lv-chart svg, .lv-multiples svg { display: block; font-family: var(--font); }
+.lv-chart svg a, .lv-multiples svg a { text-decoration: none; }
+.lv-multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+.lv-multiples h3 { margin: 0 0 2px; font-size: 13px; }
+.lv-multiples h3 a { text-decoration: none; }
+.lv-table { margin: 0 0 14px; }
+.lv-table summary { cursor: pointer; font-size: 13px; font-weight: bold; padding: 6px 0; }
+#lv-tip { position: fixed; z-index: 20; pointer-events: none; max-width: 260px; padding: 7px 10px; font-size: 12px; line-height: 1.4; border-radius: 6px; background: var(--text); color: var(--bg); }
+#lv-tip[hidden] { display: none; }
+@media (max-width: 640px) { .lv-controls { position: static; } .lv-lbl { width: 100%; } }
