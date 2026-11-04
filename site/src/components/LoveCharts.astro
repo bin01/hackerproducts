@@ -105,7 +105,7 @@ const payload = JSON.stringify({ releases: c.releases, typical: c.typical }).rep
         const xs = sel().sort((a, b) => b.sc - a.sc);
         if (!xs.length) return none(c);
         c.replaceChildren();
-        const W = Math.max(300, c.clientWidth), narrow = W < 560, lab = narrow ? 126 : 196, right = narrow ? 84 : 124, rh = 28, top = 22, H = top + xs.length * rh + 6;
+        const W = Math.max(300, c.clientWidth), narrow = W < 560, lab = narrow ? 132 : 196, right = narrow ? 84 : 124, rh = 28, top = 22, H = top + xs.length * rh + 6;
         const s = svg(W, H, "Releases ranked from most to least loved"), bw = W - lab - right, X = (v) => lab + v * bw;
         [0, .25, .5, .75, 1].forEach((v) => { el(s, "line", { x1: X(v), x2: X(v), y1: top - 6, y2: H - 4, stroke: tok("--rule") }); el(s, "text", { x: X(v), y: 12, "text-anchor": "middle", "font-size": 11, fill: tok("--muted") }, pct(v)); });
         el(s, "line", { x1: X(MID), x2: X(MID), y1: top - 6, y2: H - 4, stroke: tok("--muted"), "stroke-dasharray": "3 3" });
