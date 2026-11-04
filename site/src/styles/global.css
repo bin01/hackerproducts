@@ -402,3 +402,9 @@ details.allc[open] > summary::after { content: "Hide ↑"; }
 /* Dark marks on a transparent background vanish on the dark theme: back them with a light tile, dark mode only. */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ico-tile { background: #e6e4dc; border-radius: 3px; padding: 1px; } }
 :root[data-theme="dark"] .ico-tile { background: #e6e4dc; border-radius: 3px; padding: 1px; }
+
+/* categories page */
+.cat-row { grid-template-columns: 1fr auto; }
+.cat-top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 3px 16px; margin-top: 3px; font-size: 13px; }
+.cat-top a { text-decoration: none; white-space: nowrap; }
+.cat-top a:hover { text-decoration: underline; }
