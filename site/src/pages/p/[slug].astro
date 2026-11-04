@@ -45,7 +45,7 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
   <article class="p2" data-pagefind-body={p.listed ? "" : undefined}>
     <header class="p2-hero" id="verdict">
       <div class="p2-id">
-        <Icon p={p} size={48} />
+        <Icon p={p} size={48} eager />
         <div>
           <h1 data-pagefind-meta="title" data-pagefind-weight="10">{p.name}</h1>
           {p.description && <p class="p2-desc" data-pagefind-weight="5">{p.description}</p>}

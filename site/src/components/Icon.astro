@@ -1,9 +1,9 @@
 ---
 import darkIcons from "../data/dark_icons.json";
 const needsTile = new Set<string>(darkIcons);
-interface Props { p: { slug: string; name: string; icon?: boolean }; size?: number }
-const { p, size = 16 } = Astro.props;
+interface Props { p: { slug: string; name: string; icon?: boolean }; size?: number; eager?: boolean }
+const { p, size = 16, eager = false } = Astro.props;
 ---
 {p.icon
-  ? <img class:list={["ico", { "ico-tile": needsTile.has(p.slug) }]} src={`/icons/${p.slug}.ico`} alt="" width={size} height={size} loading="lazy" decoding="async" />
+  ? <img class:list={["ico", { "ico-tile": needsTile.has(p.slug) }]} src={`/icons/${p.slug}.ico`} alt="" width={size} height={size} loading={eager ? "eager" : "lazy"} fetchpriority={eager ? "high" : undefined} decoding="async" />
   : <span class="ico mono-ico" style={`width:${size}px;height:${size}px;font-size:${Math.round(size * 0.62)}px`} aria-hidden="true">{p.name.slice(0, 1).toUpperCase()}</span>}
