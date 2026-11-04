@@ -158,12 +158,13 @@ const payload = JSON.stringify({ releases: c.releases, typical: c.typical }).rep
         const lines = Object.entries(by).filter(([, v]) => v.length >= 2).sort((a, b) => b[1].reduce((t, x) => t + x.p, 0) - a[1].reduce((t, x) => t + x.p, 0));
         if (!lines.length) return none(c);
         c.replaceChildren();
+        const panelWidth = () => { const probe = document.createElement("div"); c.append(probe); const w = probe.clientWidth; probe.remove(); return w; };
         lines.forEach(([ln, v]) => {
           v.sort((a, b) => a.s.localeCompare(b.s));
           const box = document.createElement("div"), h = document.createElement("h3"), link = document.createElement("a");
           link.href = `/p/${v[0].slug}/#versions`; link.textContent = ln; h.append(link); box.append(h);
-          const W = 230, H = 128, m = { l: 8, r: 8, t: 20, b: 22 }, s = svg(W, H, `${ln} love score by version`);
-          s.style.width = "100%"; s.style.height = "auto";
+          // Drawn at the panel's real width, so text stays the same size as the other charts instead of scaling with the panel.
+          const W = Math.max(180, c.firstElementChild ? c.firstElementChild.clientWidth : panelWidth()), H = 128, m = { l: 8, r: 8, t: 20, b: 22 }, s = svg(W, H, `${ln} love score by version`);
           const X = (i) => m.l + 14 + (v.length === 1 ? 0 : i / (v.length - 1)) * (W - m.l - m.r - 28), Y = (t) => m.t + (1 - (t - .25) / .75) * (H - m.t - m.b);
           el(s, "line", { x1: m.l, x2: W - m.r, y1: Y(MID), y2: Y(MID), stroke: tok("--muted"), "stroke-dasharray": "3 3" });
           el(s, "polyline", { points: v.map((x, i) => `${X(i)},${Y(x.sc)}`).join(" "), fill: "none", stroke: tok("--muted"), "stroke-width": 2, "stroke-linejoin": "round" });
