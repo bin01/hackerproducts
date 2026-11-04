@@ -78,7 +78,7 @@ const sparkMax = (v: number[]) => Math.max(1, ...v);
     </section>
   </div>
 
-  <h2 id="models">AI models <span class="muted small">the LLMs and assistants themselves, ranked on their own</span></h2>
+  <h2 id="models">AI models <span class="muted small">ranked on their own, with how each latest release was received · <a href="/models/versions/">sentiment by version →</a></span></h2>
   <ol class="strip-list models-grid">
     {models.slice(0, 8).map((p) => (
       <li data-nav>
@@ -87,10 +87,13 @@ const sparkMax = (v: number[]) => Math.max(1, ...v);
         <svg class="spark" width="60" height="16" viewBox="0 0 60 16" aria-hidden="true">
           {p.spark.map((v, j) => <rect x={j * 5} y={16 - (14 * v) / sparkMax(p.spark) - 1} width="4" height={(14 * v) / sparkMax(p.spark) + 1} opacity={v ? 1 : 0.25} />)}
         </svg>
+        {(p as any).latest_version && (() => { const l = (p as any).latest_version; return (
+          <span class="vlatest">{l.label}: <b class="vrec">{Math.round((100 * l.rec) / l.people)}%</b> recommend · <b class="vwarn">{Math.round((100 * l.warn) / l.people)}%</b> warn</span>
+        ); })()}
       </li>
     ))}
   </ol>
-  <div class="more"><a href="/c/ai-models/">All {models.length} AI models →</a> · <a href="/models/versions/">Sentiment by version →</a></div>
+  <div class="more"><a href="/c/ai-models/">All {models.length} AI models →</a></div>
 
   <h2 id="debates">Debates <span class="muted small">pairs HN compares most often</span></h2>
   <div class="debates">

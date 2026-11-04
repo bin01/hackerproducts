@@ -21,14 +21,15 @@ const debated = new Set(catalog.home.debates.flatMap((d: any) => d.sides.map((s:
 const inDebate = (slug: string) => debated.has(slug) && debated.has(p.slug);
 const sections = [
   ["verdict", "Verdict"],
-  ["praise", "Praise"],
-  ["caveats", "Caveats"],
   ...(p.lines?.length ? [["lines", "Tiers"]] : []),
   ...(p.versions?.length || p.version_groups?.length ? [["versions", "Versions"]] : []),
+  ["praise", "Praise"],
+  ["caveats", "Caveats"],
   ...(p.compared.length ? [["compared", "Compared"]] : []),
   ...(p.who.length ? [["who", "Who"]] : []),
   ["comments", "Comments"],
 ];
+const latest = p.latest_version;
 const anchored = new Set<number>();
 const firstAnchor = (id: number) => (anchored.has(id) ? false : (anchored.add(id), true));
 const inThemes = new Set([...p.praise, ...p.caveats].flatMap((t: any) => t.quotes.map((q: any) => q.id)));
@@ -76,6 +77,15 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
       <div><b class:list={{ warnc: p.warners > 0 }}>{p.warners}</b><span>warn against</span></div>
       <div><b class="sm">{fmtDate(p.first)}</b><span>first mention</span></div>
       <div><b class="sm">{fmtDate(p.latest)}</b><span>latest mention</span></div>
+      {latest && (
+        <div class="p2-latest">
+          <b class="sm">Latest: {latest.label}</b>
+          <span class="vbar" title={`${latest.rec} recommend · ${latest.other} use or compare · ${latest.warn} warn`}>
+            <i class="s-recommend" style={`width:${(100 * latest.rec) / latest.people}%`} /><i class="s-neutral" style={`width:${(100 * latest.other) / latest.people}%`} /><i class="s-warn" style={`width:${(100 * latest.warn) / latest.people}%`} />
+          </span>
+          <span><b class="vrec">{Math.round((100 * latest.rec) / latest.people)}%</b> recommend · <b class="vwarn">{Math.round((100 * latest.warn) / latest.people)}%</b> warn · {latest.people} people</span>
+        </div>
+      )}
       <div class="p2-months" title="People with a stance per month">
         <div class="months">
           {months.map((m) => {
@@ -89,34 +99,6 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
         </div>
         <span>{monthLabel(months[0])} – {monthLabel(months[months.length - 1])}</span>
       </div>
-    </div>
-
-    {(p.tags.length > 0 || p.use_cases.length > 0) && (
-      <div class="p2-tags">
-        <span class="lbl">Used for</span>
-        {[...p.tags, ...p.use_cases.slice(0, p.tags.length ? 2 : 6)].map((t: string) => <span class="chip quiet">{t}</span>)}
-      </div>
-    )}
-
-    <div class="p2-cols">
-      {[["praise", "Why people recommend it", p.praise, "No clear praise yet."], ["caveats", "Caveats and dissent", p.caveats, "No one in these comments warned against it."]].map(([id, title, themes, empty]: any) => (
-        <section id={id} class="p2-sec">
-          <h2>{title}</h2>
-          {themes.length ? themes.map((t: any) => (
-            <div class="p2-theme">
-              {t.label && <h3>{t.label} <span class="muted">· {t.quotes.length}</span></h3>}
-              {t.summary && <p class="p2-sum">{t.summary}</p>}
-              {t.quotes.slice(0, 2).map((q: any) => <HNQuote q={q} anchor={firstAnchor(q.id)} />)}
-              {t.quotes.length > 2 && (
-                <details class="more-q">
-                  <summary>Show {t.quotes.length - 2} more</summary>
-                  {t.quotes.slice(2).map((q: any) => <HNQuote q={q} anchor={firstAnchor(q.id)} />)}
-                </details>
-              )}
-            </div>
-          )) : <p class="empty" data-pagefind-ignore>{empty}</p>}
-        </section>
-      ))}
     </div>
 
     {p.lines?.length > 0 && (
@@ -146,23 +128,51 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
 
     {(p.versions?.length > 0 || p.version_groups?.length > 0) && (
       <section id="versions" class="p2-sec" data-pagefind-ignore>
-        <h2>By version <span class="muted small">sentiment of people who named that release, oldest release first</span></h2>
-        {(p.version_groups || []).map((g: any) => (
-          <>
-            <h3 class="vt-group"><a href={`/p/${g.slug}/`}>{g.name}</a></h3>
+        <h2>By version <span class="muted small">sentiment of people who named that release, latest release first</span></h2>
+        {(p.version_groups || []).map((g: any, i: number) => (
+          <details class="vt-tier" open={i === 0}>
+            <summary class="vt-group">{g.name} <span class="muted small">{g.versions.length} versions, latest {g.versions[0].v}</span></summary>
             <VersionTable name={g.name} versions={g.versions} href={`/p/${g.slug}/`} legend={false} />
-          </>
+          </details>
         ))}
-        {p.versions?.length > 0 && (
-          <>
-            {p.version_groups?.length > 0 && <h3 class="vt-group">{p.name}, no tier named</h3>}
+        {p.versions?.length > 0 && (p.version_groups?.length > 0 ? (
+          <details class="vt-tier">
+            <summary class="vt-group">{p.name}, no tier named <span class="muted small">{p.versions.length} versions, latest {p.versions[0].v}</span></summary>
             <VersionTable name={p.name} versions={p.versions} legend={false} />
-          </>
-        )}
+          </details>
+        ) : <VersionTable name={p.name} versions={p.versions} legend={false} />)}
         <div class="legend vlegend"><span><i class="s-recommend" />recommend</span><span><i class="s-neutral" />uses or compares</span><span><i class="s-warn" />warns</span></div>
         <p class="small muted">Versions with at least 5 people.{!p.version_groups?.length && <> {p.version_unnamed.toLocaleString("en")} {p.version_unnamed === 1 ? "person" : "people"} didn't name a version.</>} Small samples swing a lot, so read the counts too. <a href="/models/versions/">Compare all models →</a></p>
       </section>
     )}
+
+    {(p.tags.length > 0 || p.use_cases.length > 0) && (
+      <div class="p2-tags">
+        <span class="lbl">Used for</span>
+        {[...p.tags, ...p.use_cases.slice(0, p.tags.length ? 2 : 6)].map((t: string) => <span class="chip quiet">{t}</span>)}
+      </div>
+    )}
+
+    <div class="p2-cols">
+      {[["praise", "Why people recommend it", p.praise, "No clear praise yet."], ["caveats", "Caveats and dissent", p.caveats, "No one in these comments warned against it."]].map(([id, title, themes, empty]: any) => (
+        <section id={id} class="p2-sec">
+          <h2>{title}</h2>
+          {themes.length ? themes.map((t: any) => (
+            <div class="p2-theme">
+              {t.label && <h3>{t.label} <span class="muted">· {t.quotes.length}</span></h3>}
+              {t.summary && <p class="p2-sum">{t.summary}</p>}
+              {t.quotes.slice(0, 2).map((q: any) => <HNQuote q={q} anchor={firstAnchor(q.id)} />)}
+              {t.quotes.length > 2 && (
+                <details class="more-q">
+                  <summary>Show {t.quotes.length - 2} more</summary>
+                  {t.quotes.slice(2).map((q: any) => <HNQuote q={q} anchor={firstAnchor(q.id)} />)}
+                </details>
+              )}
+            </div>
+          )) : <p class="empty" data-pagefind-ignore>{empty}</p>}
+        </section>
+      ))}
+    </div>
 
     {p.compared.length > 0 && (
       <section id="compared" class="p2-sec">

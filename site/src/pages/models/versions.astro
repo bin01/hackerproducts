@@ -8,7 +8,7 @@ const pct = (n: number, r: any) => Math.round((100 * n) / r.people);
 ---
 <Base title="Model sentiment by version" active="categories" description="How Hacker News commenters received each release of the major AI models.">
   <h1 style="font-size:18px">Model sentiment by version</h1>
-  <p class="lede">How HN commenters received each release, oldest first. Each bar shows the people who named that version: green recommends, grey uses or compares, red warns. Only versions with at least 5 people are shown, and the number under each bar is the sample size, so treat small ones with care. Most comments are from one year ({catalog.stats.window}).</p>
+  <p class="lede">How HN commenters received each release, latest first. Each bar shows the people who named that version: green recommends, grey uses or compares, red warns. Only versions with at least 5 people are shown, and the number under each bar is the sample size, so treat small ones with care. Most comments are from one year ({catalog.stats.window}).</p>
   <div class="legend vlegend"><span><i class="s-recommend" />recommend</span><span><i class="s-neutral" />uses or compares</span><span><i class="s-warn" />warns</span></div>
   <div class="vlines">
     {families.map((f: any) => {

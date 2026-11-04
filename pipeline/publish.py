@@ -84,7 +84,7 @@ def version_of(raw):
 
 
 def version_table(ms):
-    """Per-version sentiment for one model line, oldest release first. One person counts once per version."""
+    """Per-version sentiment for one model line, latest release first. One person counts once per version."""
     rows = defaultdict(dict)
     unnamed = set()
     for m in sorted(ms, key=lambda m: m["time"]):
@@ -102,8 +102,8 @@ def version_table(ms):
     # Sizes ("27B") only count as versions for lines with no release numbers at all, such as gpt-oss.
     numbered = [r for r in out if not r["v"].endswith("B")]
     out = numbered or out
-    # Version order is release order; first-seen isn't, since the data only covers one year.
-    out.sort(key=lambda r: float(r["v"].rstrip("B")))
+    # Latest release first. Order by version number, not first-seen, since the data only covers one year.
+    out.sort(key=lambda r: -float(r["v"].rstrip("B")))
     return out, len(unnamed)
 
 
@@ -153,6 +153,20 @@ def family_rollup(ms):
     return {"recommenders": len({m["by"] for m in ms if m["stance"] == "recommend"}), "commenters": len(latest),
             "warners": sum(v == "warn" for v in latest.values()), "first": ms[0]["time"][:10], "latest": ms[-1]["time"][:10],
             "months": {k: dict(v) for k, v in months.items()}}
+
+
+def latest_of(lines):
+    """The newest release across model lines, largest line first on ties. Lines known only by size have no "latest"."""
+    best, label = None, None
+    for line in lines:
+        r = line["versions"][0]
+        if r["v"].endswith("B"):
+            continue
+        if best is None or float(r["v"]) > float(best["v"]):
+            best = r
+            head = re.match(r"(.*?)(\d+)$", line["name"])
+            label = f"{head[1]}{r['v']}" if head and r["v"].startswith(head[2]) else f"{line['name']} {r['v']}"
+    return best and {"label": label, "people": best["people"], "rec": best["rec"], "warn": best["warn"], "other": best["other"]}
 
 
 def hn(item_id):
@@ -335,14 +349,22 @@ def main():
         own = line_by_slug.get(x["slug"])
         kids = sorted((l for l in version_lines if l["family"] == x["slug"]), key=lambda l: -l["recommenders"])
         if own or kids:
+            lv = latest_of(kids + ([own] if own else []))
+            if lv:
+                x["latest_version"] = lv
             version_families.append({"slug": x["slug"], "name": x["name"], "icon": x["icon"], "recommenders": x["recommenders"],
                                      "lines": kids + ([own] if own else [])})
+    def update_detail(slug, **fields):
+        f = DATA / "products" / f"{slug}.json"
+        f.write_text(json.dumps({**json.loads(f.read_text()), **fields}))
     for fam in version_families:
+        fields = {"latest_version": next((x["latest_version"] for x in summaries if x["slug"] == fam["slug"] and "latest_version" in x), None)}
         if any(l["slug"] != fam["slug"] for l in fam["lines"]):
-            f = DATA / "products" / f"{fam['slug']}.json"
-            d = json.loads(f.read_text())
-            d["version_groups"] = [l for l in fam["lines"] if l["slug"] != fam["slug"]]
-            f.write_text(json.dumps(d))
+            fields["version_groups"] = [l for l in fam["lines"] if l["slug"] != fam["slug"]]
+        update_detail(fam["slug"], **fields)
+    for line in version_lines:
+        if line["family"]:
+            update_detail(line["slug"], latest_version=latest_of([line]))
     stats = {
         "comments": duckdb.sql(f"SELECT count(DISTINCT id) FROM read_parquet('{ROOT}/data/raw/month=*/*.parquet', union_by_name=true) "
                                "WHERE type = 2 AND time >= '2025-11-01'").fetchall()[0][0],
