@@ -10,7 +10,7 @@ export function getStaticPaths() {
 const { c } = Astro.props;
 const items = listed.filter((p: any) => p.category === c.slug && !p.family);
 ---
-<Base title={c.name} active="categories" description={`What Hacker News commenters recommend for ${c.name.toLowerCase()}.`}>
+<Base title={c.name} active={c.slug === "ai-models" ? "models" : "categories"} description={`What Hacker News commenters recommend for ${c.name.toLowerCase()}.`}>
   <div class="chips">
     {categories.map((o) => <a class:list={["chip", { on: o.slug === c.slug }]} href={`/c/${o.slug}/`}>{o.name}</a>)}
   </div>

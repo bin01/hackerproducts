@@ -2,13 +2,16 @@
 import "../styles/global.css";
 import { stats, counts } from "../lib/data";
 
-interface Props { title?: string; description?: string; active?: string }
-const { title, description = "Software that Hacker News commenters actually recommend, with the comments that say why.", active = "" } = Astro.props;
+interface Props { title?: string; description?: string; active?: string; image?: string; imageAlt?: string }
+const { title, description = "Software that Hacker News commenters actually recommend, with the comments that say why.", active = "", image = "/og/site.png", imageAlt = "HackerProducts: what Hacker News actually uses" } = Astro.props;
 const full = title ? `${title} · HackerProducts` : "HackerProducts: what HN actually uses";
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const imageUrl = new URL(image, Astro.site).href;
 const nav = [
   ["/", "home", "Home"],
   ["/top/", "top", "Top"],
   ["/rising/", "rising", "Rising"],
+  ["/models/compare/", "models", "Models"],
   ["/categories/", "categories", "Categories"],
   ["/about/", "about", "About"],
 ];
@@ -20,6 +23,21 @@ const nav = [
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{full}</title>
   <meta name="description" content={description} />
+  <link rel="canonical" href={canonical} />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="HackerProducts" />
+  <meta property="og:title" content={full} />
+  <meta property="og:description" content={description} />
+  <meta property="og:url" content={canonical} />
+  <meta property="og:image" content={imageUrl} />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content={imageAlt} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={full} />
+  <meta name="twitter:description" content={description} />
+  <meta name="twitter:image" content={imageUrl} />
+  <meta name="twitter:image:alt" content={imageAlt} />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <script is:inline>
     try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}

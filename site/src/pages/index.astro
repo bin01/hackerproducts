@@ -27,8 +27,27 @@ let nAi = 0;
 const risingMix = rising.filter((p) => !AI.has(p.category) || nAi++ < 2).slice(0, 5);
 const gems = home.gems.map((s) => bySlug[s]).filter(Boolean);
 const sparkMax = (v: number[]) => Math.max(1, ...v);
+// The most loved release out now from each of four families, with enough people to mean something.
+const loveScore = (x: any) => x.r / (x.r + x.w);
+const lovedNow = (() => {
+  const seen = new Set();
+  return [...(catalog as any).compare.releases].filter((x: any) => x.cur && x.p >= 50).sort((a: any, b: any) => loveScore(b) - loveScore(a))
+    .filter((x: any) => !seen.has(x.f) && seen.add(x.f)).slice(0, 4);
+})();
 ---
 <Base active="home">
+  <a class="loved-now" href="/models/versions/">
+    <span class="loved-hd"><b>Which AI models are loved right now?</b> <span class="muted small">see all the charts →</span></span>
+    <span class="loved-grid">
+      {lovedNow.map((x: any) => (
+        <span class="loved-item">
+          <span class="loved-name">{x.l}</span>
+          <span class="vbar"><i style={`width:${100 * loveScore(x)}%;background:var(--love)`} /></span>
+          <span class="muted small">{Math.round(100 * loveScore(x))}% loved · {x.p} people</span>
+        </span>
+      ))}
+    </span>
+  </a>
   <div class="chips home-chips">
     {chips.map((c) => <a class="chip" href={`/c/${c.slug}/`}>{c.name}</a>)}
   </div>

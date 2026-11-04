@@ -11,7 +11,7 @@ const flowMax = Math.max(...c.flows.map((f: any) => f.people));
 const gridMax = Math.max(...Object.values(c.grid.counts) as number[]);
 const pairCount = (a: string, b: string) => c.grid.counts[`${a}:${b}`] ? [c.grid.counts[`${a}:${b}`], `pair:${a}:${b}`] : c.grid.counts[`${b}:${a}`] ? [c.grid.counts[`${b}:${a}`], `pair:${b}:${a}`] : [0, ""];
 ---
-<Base title="AI models compared" active="categories" description="All the feedback from Hacker News commenters on AI models in one page: who is recommended, what for, and who people are switching to.">
+<Base title="AI models compared" active="models" image="/og/compare.png" imageAlt="AI models compared: people recommending each model family in Hacker News comments" description="All the feedback from Hacker News commenters on AI models in one page: who is recommended, what for, and who people are switching to.">
   <h1 style="font-size:18px">AI models compared</h1>
   <p class="lede">What HN commenters said about each model family from {catalog.stats.window}. Each person counts once per family. Open any number to read the comments behind it.</p>
   <section class="cmp-sec" id="loved">
@@ -27,21 +27,21 @@ const pairCount = (a: string, b: string) => c.grid.counts[`${a}:${b}`] ? [c.grid
       <button type="button" class="chip" data-sort="pct">% recommend</button>
       <button type="button" class="chip" data-sort="net">Latest release</button>
     </div>
-    <div class="cmp-scroll" tabindex="0">
+    <div class="cmp-scroll fam-scroll" tabindex="0">
       <table class="cmp-table" id="famtable">
         <thead><tr><th>Family</th><th class="num">Recommend</th><th>Sentiment</th><th>Latest release</th><th>Praised for</th><th>Top caveat</th></tr></thead>
         <tbody>
           {c.table.map((r: any) => (
             <tr data-people={r.recommenders} data-pct={pct(r.rec, r.people)} data-net={r.latest?.love ?? -999}>
               <th scope="row"><a href={`/p/${r.slug}/`}><Icon p={r} />{r.name}</a></th>
-              <td class="num">{r.recommenders.toLocaleString("en")}</td>
-              <td class="cmp-sent">
+              <td class="num" data-label="Recommend">{r.recommenders.toLocaleString("en")}</td>
+              <td class="cmp-sent" data-label="Sentiment">
                 <span class="vbar" title={`${r.rec} recommend · ${r.other} use or compare · ${r.warn} warn, of ${r.people} people`}>
                   <i class="s-recommend" style={`width:${(100 * r.rec) / r.people}%`} /><i class="s-neutral" style={`width:${(100 * r.other) / r.people}%`} /><i class="s-warn" style={`width:${(100 * r.warn) / r.people}%`} />
                 </span>
                 <span class="vnums"><b class="vrec">{pct(r.rec, r.people)}%</b> · <b class="vwarn">{pct(r.warn, r.people)}%</b> of {r.people.toLocaleString("en")}</span>
               </td>
-              <td class="cmp-latest">
+              <td class="cmp-latest" data-label="Latest release">
                 {r.latest ? (
                   <>
                     <a href={`/p/${r.latest.slug}/?v=${encodeURIComponent(r.latest.v)}#comments`}>{r.latest.label}</a>
@@ -49,8 +49,8 @@ const pairCount = (a: string, b: string) => c.grid.counts[`${a}:${b}`] ? [c.grid
                   </>
                 ) : <span class="muted small">no release with 10+ people</span>}
               </td>
-              <td class="small">{r.praise.join(", ") || <span class="muted">not summarized yet</span>}</td>
-              <td class="small">{r.caveat || <span class="muted">not summarized yet</span>}</td>
+              <td class="small" data-label="Praised for">{r.praise.join(", ") || <span class="muted">not summarized yet</span>}</td>
+              <td class="small" data-label="Top caveat">{r.caveat || <span class="muted">not summarized yet</span>}</td>
             </tr>
           ))}
         </tbody>

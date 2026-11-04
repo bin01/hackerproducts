@@ -54,6 +54,7 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
             <a class="chip" href={`/c/${p.category}/`}>{p.category_name}</a>
             {p.family_ref && <a class="chip" href={`/p/${p.family_ref.slug}/`}>Part of {p.family_ref.name}</a>}
             {p.runs_on && <a class="chip" href={`/p/${p.runs_on.slug}/`}>Assistant app · models: {p.runs_on.name}</a>}
+            {p.category === "ai-models" && <a class="chip chip-go" href="/models/compare/">Compare with other models →</a>}
             {p.pricing && p.pricing !== "unknown" && <span class="chip quiet">{p.pricing}</span>}
             {host && <a class="p2-site" href={p.official_url} rel="nofollow noopener">{host.length > 40 ? host.slice(0, 38) + "…" : host} ↗</a>}
           </div>

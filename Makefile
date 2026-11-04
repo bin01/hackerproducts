@@ -48,6 +48,7 @@ publish:
 	uv run pipeline/publish.py
 	uv run pipeline/icons.py
 	uv run pipeline/publish.py
+	uv run --with pillow pipeline/og_cards.py
 
 site:
 	cd site && npm run build

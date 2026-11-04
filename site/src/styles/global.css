@@ -371,3 +371,26 @@ details.allc[open] > summary::after { content: "Hide ↑"; }
 #lv-tip { position: fixed; z-index: 20; pointer-events: none; max-width: 260px; padding: 7px 10px; font-size: 12px; line-height: 1.4; border-radius: 6px; background: var(--text); color: var(--bg); }
 #lv-tip[hidden] { display: none; }
 @media (max-width: 640px) { .lv-controls { position: static; } .lv-lbl { width: 100%; } }
+
+.chip-go { border-color: var(--accent); color: var(--accent-ink); }
+.loved-now { display: block; margin: 12px 0 12px; padding: 10px 12px; border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: 4px; text-decoration: none; background: var(--card); }
+.loved-hd { display: block; font-size: 13px; margin-bottom: 8px; }
+.loved-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.loved-item { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.loved-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 640px) {
+  .loved-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Family table as stacked cards */
+  .fam-scroll { overflow: visible; }
+  #famtable, #famtable tbody, #famtable tr, #famtable td, #famtable th { display: block; width: auto; }
+  #famtable thead { display: none; }
+  #famtable tr { padding: 10px 0; border-top: 1px solid var(--rule); }
+  #famtable th, #famtable td { border: 0; padding: 2px 0; position: static; min-width: 0; text-align: left; background: none; }
+  #famtable tbody th { font-size: 14px; margin-bottom: 2px; white-space: normal; }
+  #famtable td[data-label] { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+  #famtable td[data-label]::before { content: attr(data-label); font-size: 11px; font-weight: normal; color: var(--muted); }
+  #famtable td[data-label] > .vnums { grid-column: 2; margin-top: -5px; }
+  #famtable .cmp-sent .vbar { margin: 0; align-self: center; }
+  .loved-name { white-space: normal; }
+  .nav { gap: 9px; font-size: 12.5px; }
+}
