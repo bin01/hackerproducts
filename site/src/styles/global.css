@@ -258,3 +258,7 @@ details.allc[open] > summary::after { content: "Hide ↑"; }
 .pager { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 18px 0 0; font-size: 13px; }
 .pager a, .pager span { padding: 2px 8px; border: 1px solid var(--rule); border-radius: 3px; text-decoration: none; }
 .pager .cur { border-color: var(--accent); color: var(--accent-ink); }
+.models-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; }
+.models-grid li + li { border-top: 0; }
+.models-grid li { border-bottom: 1px solid var(--rule); }
+@media (max-width: 640px) { .models-grid { grid-template-columns: minmax(0, 1fr); } }

@@ -1,6 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
-import { listed, rising, categories, stats, products, months, monthLabel } from "../lib/data";
+import { listed, rising, models, categories, stats, products, months, monthLabel, AI_MODELS } from "../lib/data";
 import catalog from "../data/catalog.json";
 import picks from "../../public/export/picks.json";
 import Icon from "../components/Icon.astro";
@@ -8,9 +8,9 @@ import Icon from "../components/Icon.astro";
 const home = catalog.home;
 const bySlug = Object.fromEntries(products.map((p) => [p.slug, p]));
 const AI = new Set(["ai", "ai-coding"]);
-const chips = [...categories.filter((c) => c.slug !== "other"), ...categories.filter((c) => c.slug === "other")];
+const chips = [...categories.filter((c) => c.slug === AI_MODELS), ...categories.filter((c) => c.slug !== "other" && c.slug !== AI_MODELS), ...categories.filter((c) => c.slug === "other")];
 const ordered = [...categories.filter((c) => !AI.has(c.slug)), ...categories.filter((c) => AI.has(c.slug))];
-const shelves = ordered.filter((c) => c.slug !== "other").map((c) => {
+const shelves = ordered.filter((c) => c.slug !== "other" && c.slug !== AI_MODELS).map((c) => {
   const top = listed.filter((p) => p.category === c.slug).slice(0, 4);
   return { ...c, top, max: Math.max(1, ...top.map((p) => p.recommenders)) };
 }).filter((c) => c.top.length >= 4);
@@ -77,6 +77,20 @@ const sparkMax = (v: number[]) => Math.max(1, ...v);
       </ul>
     </section>
   </div>
+
+  <h2 id="models">AI models <span class="muted small">the LLMs and assistants themselves, ranked on their own</span></h2>
+  <ol class="strip-list models-grid">
+    {models.slice(0, 8).map((p) => (
+      <li data-nav>
+        <span><a href={`/p/${p.slug}/`}><Icon p={p} />{p.name}</a></span>
+        <span class="muted small">{p.recommenders}</span>
+        <svg class="spark" width="60" height="16" viewBox="0 0 60 16" aria-hidden="true">
+          {p.spark.map((v, j) => <rect x={j * 5} y={16 - (14 * v) / sparkMax(p.spark) - 1} width="4" height={(14 * v) / sparkMax(p.spark) + 1} opacity={v ? 1 : 0.25} />)}
+        </svg>
+      </li>
+    ))}
+  </ol>
+  <div class="more"><a href="/c/ai-models/">All {models.length} AI models →</a></div>
 
   <h2 id="debates">Debates <span class="muted small">pairs HN compares most often</span></h2>
   <div class="debates">

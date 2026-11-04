@@ -13,10 +13,10 @@ const dumpKB = Math.round(statSync("public/export/products.json").size / 1024).t
     <ol>
       <li><b>Ingest.</b> {f(stats.comments)} comments from the open-index/hacker-news dataset and the Algolia HN API.</li>
       <li><b>Prefilter.</b> Rules keep comments with recommendation phrasing ("I use", "switched to", "highly recommend"), links to non-news sites, or a place in an Ask HN thread about tools: {f(stats.candidates)} candidates.</li>
-      <li><b>Extract.</b> Claude Sonnet labels the highest-priority candidates ({f(stats.labeled)} so far, {f(stats.with_product)} of which name a product): each product named, the commenter's stance, a verbatim quote, what they use it for, alternatives, and whether they built it. On a 500-comment check against Claude Opus, Sonnet scored 87.8% F1 and Haiku 78.9%, so Sonnet does this step.</li>
+      <li><b>Extract.</b> A model labels the highest-priority candidates ({f(stats.labeled)} so far, {f(stats.with_product)} of which name a product): each product named, the commenter's stance, a verbatim quote, what they use it for, alternatives, and whether they built it. The first 75,000 were labeled by Claude Sonnet and the rest by Claude Haiku with a compact prompt, after a 500-comment check against Claude Opus showed them close (F1 about 87% and 86%).</li>
       <li><b>Resolve.</b> Names are merged by link domain or GitHub repo first, then by normalized name; Sonnet reviews near-duplicates ("Postgres" and "PostgreSQL").</li>
-      <li><b>Score.</b> One vote per HN user per product, their latest stance counts, warnings subtract, recent comments count more, and comments by the product's own makers are excluded.</li>
-      <li><b>Synthesize.</b> For products with at least 5 recommenders, Claude Opus groups quotes into praise and caveat themes and writes the two-sentence verdict. Any clause without a citation to a real comment is rejected.</li>
+      <li><b>Score.</b> One vote per HN user per product, and comments by the product's own makers are excluded. Lists rank by distinct recommenders, with warnings shown beside each product. AI models are ranked separately from other tools.</li>
+      <li><b>Synthesize.</b> For the most-recommended products, Claude Opus groups quotes into praise and caveat themes and writes the two-sentence verdict. Any clause without a citation to a real comment is rejected.</li>
     </ol>
     <h2>What to keep in mind</h2>
     <ul>

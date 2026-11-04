@@ -33,8 +33,9 @@ TWO_LEVEL = {"co.uk", "com.au", "co.jp", "com.br", "co.nz", "org.uk"}
 DROP_CATS = re.compile(r"hardware|\bbooks?\b|device|e-reader|laptop|phone|keyboard|headphone|monitor\b(?!ing)")
 
 CATS = [
+    ("ai-models", "AI models", []),  # assigned by is_model(), not by keyword
     ("ai-coding", "AI coding tools", ["ai coding", "coding assistant", "coding agent", "code assistant", "code agent", "agentic"]),
-    ("ai", "AI models and assistants", ["ai model", "llm", "ai assistant", "chatbot", "language model", "ai", "inference", "speech", "transcription"]),
+    ("ai", "AI tools and apps", ["ai model", "llm", "ai assistant", "chatbot", "language model", "ai", "inference", "speech", "transcription"]),
     ("terminal", "Terminal and shell", ["terminal", "shell", "cli", "command-line", "command line"]),
     ("databases", "Databases", ["database", "db", "sql", "datastore", "key-value", "vector store"]),
     ("git", "Git and code hosting", ["version control", "git", "code hosting", "code review", "forge"]),
@@ -55,6 +56,21 @@ CATS = [
     ("finance", "Finance", ["finance", "budget", "budgeting", "accounting", "payment", "banking"]),
     ("editors", "Editors and IDEs", ["editor", "ide"]),
 ]
+
+
+# LLMs, model families and chat assistants get their own category and lists, so rankings show the tools built on them.
+MODEL_RAW = re.compile(r"(^|\s)(ai|llm|language|image|speech|speech-to-text|coding|video|local|open[- ]weight|foundation|reasoning)"
+                       r"(\s.*)?\smodels?$|^(local )?llm$|^large language model|chatbot|^ai assistant$|^ai model")
+MODEL_YES = {"whisper", "kokoro"}  # hand-checked exceptions to the rule, both ways
+MODEL_NO = {"claudecowork", "grokcode"}
+
+
+def is_model(keys, raw_categories):
+    if keys & MODEL_NO:
+        return False
+    if keys & MODEL_YES:
+        return True
+    return sum(bool(MODEL_RAW.search((c or "").lower().strip())) for c in raw_categories) * 2 >= max(1, len(raw_categories))
 
 
 def map_category(raw):
@@ -384,6 +400,8 @@ def main():
         top_cat, top_n = cats.most_common(1)[0]
         if top_cat == "other" and len(cats) > 1:
             top_cat = cats.most_common(2)[1][0]
+        if top_cat in ("ai", "ai-coding") and is_model({m["nk"] for m in ms}, [m["p"].get("category") for m in ms]):
+            top_cat = "ai-models"
         users = len({m["by"] for m in ms})
         if users >= 5 and top_n / len(ms) < 0.5:
             con.execute("INSERT INTO alias_review(raw_name, candidate_product_ids, status, note) VALUES (?, ?, 'open', ?)",

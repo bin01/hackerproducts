@@ -3,10 +3,10 @@ import Base from "../../layouts/Base.astro";
 import ProductList from "../../components/ProductList.astro";
 import ListTools from "../../components/ListTools.astro";
 import Pager from "../../components/Pager.astro";
-import { listed, stats, PAGE_SIZE } from "../../lib/data";
+import { main, models, stats, PAGE_SIZE } from "../../lib/data";
 
 export function getStaticPaths({ paginate }: any) {
-  return paginate(listed, { pageSize: PAGE_SIZE });
+  return paginate(main, { pageSize: PAGE_SIZE });
 }
 const { page } = Astro.props;
 const start = page.start + 1;
@@ -14,6 +14,7 @@ const start = page.start + 1;
 <Base title={page.currentPage === 1 ? "Top" : `Top, page ${page.currentPage}`} active="top">
   <h1 style="font-size:18px">Top <span class="muted small">{start}–{page.end + 1} of {page.total.toLocaleString("en")}</span></h1>
   <p class="lede">Products recommended by at least 3 HN commenters ({stats.window}), ranked by distinct recommenders: one vote per HN user, ties broken by recency. Warnings are shown beside each product, and comments by a product's own makers don't count.</p>
+  <p class="lede"><a href="/c/ai-models/">AI models ({models.length}) are ranked separately →</a></p>
   <ListTools title="Top" items={page.data} json="/export/top.json" start={start} />
   <ProductList items={page.data} start={start} />
   <Pager base="/top" current={page.currentPage} last={page.lastPage} />

@@ -14,7 +14,12 @@ export const categories = catalog.categories;
 export const stats = catalog.stats;
 export const months = catalog.months;
 
-export const rising = [...listed]
+// AI models have their own category page and home section; the main lists show everything else.
+export const AI_MODELS = "ai-models";
+export const main = listed.filter((p) => p.category !== AI_MODELS);
+export const models = listed.filter((p) => p.category === AI_MODELS);
+
+export const rising = [...main]
   .filter((p) => p.rising > 0)
   .sort((a, b) => b.rising - a.rising || b.score - a.score);
 

@@ -23,6 +23,7 @@ DATA = SITE / "src" / "data"
 EXPORT = SITE / "public" / "export"
 MONTHS = [f"{y}-{m:02d}" for y, m in [(2025, 11), (2025, 12)] + [(2026, i) for i in range(1, 11)]]
 MIN_PAGE = 2   # distinct recommenders for a product page (keeps the deploy under Cloudflare Pages' 20,000-file cap)
+MODELS = "ai-models"
 MIN_LIST = 3   # distinct recommenders to appear in ranked lists
 
 
@@ -220,8 +221,9 @@ def main():
         return [{"rank": i + 1, "name": x["name"], "url": f"/p/{x['slug']}/", "category": x["category_name"],
                  "recommenders": x["recommenders"], "warners": x["warners"], "rising": x["rising"],
                  "loved_for": x["loved"], "caveat": x["caveat"]} for i, x in enumerate(items)]
-    rising = sorted((x for x in listed if x["rising"] > 0), key=lambda x: (-x["rising"], -x["score"]))
-    (EXPORT / "top.json").write_text(json.dumps(compact(listed), indent=1))
+    main_list = [x for x in listed if x["category"] != MODELS]  # AI models are ranked on their own category page
+    rising = sorted((x for x in main_list if x["rising"] > 0), key=lambda x: (-x["rising"], -x["score"]))
+    (EXPORT / "top.json").write_text(json.dumps(compact(main_list), indent=1))
     (EXPORT / "rising.json").write_text(json.dumps(compact(rising), indent=1))
     (EXPORT / "p").mkdir()
     for s in summaries:
@@ -265,7 +267,7 @@ def home_data(con, summaries, mentions, products, themes, verdicts):
         th = themes[pid]
         pq = next((t for t in th if t["polarity"] == "praise"), None)
         cq = next((t for t in th if t["polarity"] == "caveat"), None)
-        if not (pq and cq) or products[pid]["slug"] not in by_slug:
+        if not (pq and cq) or products[pid]["slug"] not in by_slug or by_slug[products[pid]["slug"]]["category"] == MODELS:
             continue
         ids = {m["id"]: m for m in mentions[pid]}
 
@@ -296,7 +298,7 @@ def home_data(con, summaries, mentions, products, themes, verdicts):
         if a not in verdicts or b not in verdicts or a in used or b in used:
             continue
         sa, sb = by_slug.get(products[a]["slug"]), by_slug.get(products[b]["slug"])
-        if not (sa and sb and sa["listed"] and sb["listed"]):
+        if not (sa and sb and sa["listed"] and sb["listed"]) or MODELS in (sa["category"], sb["category"]):
             continue
         is_ai = {sa["category"], sb["category"]} & {"ai", "ai-coding"}
         if is_ai and n_ai >= 2:
@@ -317,7 +319,7 @@ def home_data(con, summaries, mentions, products, themes, verdicts):
     gems, cats_seen = [], set()
     for s in sorted(summaries, key=lambda s: -s["score"]):
         if 3 <= s["recommenders"] <= 8 and s["warners"] == 0 and s["category"] not in cats_seen and s["short_quote"] \
-                and s["category"] not in ("ai", "ai-coding", "other"):
+                and s["category"] not in (MODELS, "ai", "ai-coding", "other"):
             gems.append(s["slug"])
             cats_seen.add(s["category"])
         if len(gems) == 6:

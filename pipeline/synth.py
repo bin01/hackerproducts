@@ -134,6 +134,7 @@ def main():
     ap.add_argument("--order", choices=["score", "recommenders"], default="score")
     ap.add_argument("--export", help="write the prompts' inputs to this folder (no usernames) instead of calling a model")
     ap.add_argument("--budget", type=float, default=0, help="stop starting new products after this many USD")
+    ap.add_argument("--load-only", action="store_true", help="load cached verdicts into hp.sqlite without calling a model")
     ap.add_argument("--inputs", help="synthesize from an --export folder instead of data/hp.sqlite (e.g. in the cloud)")
     args = ap.parse_args()
     CACHE.mkdir(parents=True, exist_ok=True)
@@ -153,6 +154,9 @@ def main():
             WHERE s.distinct_recommenders >= ? ORDER BY {order} DESC LIMIT ?
         """, (args.min, args.limit)).fetchall()
         picked = {p[0]: pick_mentions(con, p[0], args.max_mentions) for p in prods}
+    if args.load_only:
+        load(con, prods)
+        return 0
     if args.export:
         return export(Path(args.export), prods, picked, args.max_mentions, template)
     jobs = []
