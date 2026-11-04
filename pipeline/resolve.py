@@ -65,6 +65,52 @@ MODEL_YES = {"whisper", "kokoro"}  # hand-checked exceptions to the rule, both w
 MODEL_NO = {"claudecowork", "grokcode"}
 
 
+# Named model lines stay separate products (Claude Opus, Gemini Flash, GPT Sol, DeepSeek V4 Pro). Point releases and
+# sizes roll up into their line; each mention keeps its original name (mention.raw_name) for the per-version table.
+# GPT generations stay apart because they are years apart. Apps and tools aren't model clusters, so they stay out.
+MODEL_FAMILIES = [
+    (re.compile(r"^(claude[\d.]*)?opus"), "claudeopus", "Claude Opus"),
+    (re.compile(r"^(claude[\d.]*)?sonnet"), "claudesonnet", "Claude Sonnet"),
+    (re.compile(r"^(claude[\d.]*)?haiku"), "claudehaiku", "Claude Haiku"),
+    (re.compile(r"^(claude)?fable"), "claudefable", "Claude Fable"),
+    (re.compile(r"^gptoss"), "gptoss", "gpt-oss"),
+    (re.compile(r"^gpt5[\d.]*codex"), "gpt5codex", "GPT-5-Codex"),
+    (re.compile(r"^gpt6"), "gpt6", "GPT-6"), (re.compile(r"^gpt5"), "gpt5", "GPT-5"),
+    (re.compile(r"^gpt4"), "gpt4", "GPT-4"), (re.compile(r"^gpt3"), "gpt3", "GPT-3"),
+    (re.compile(r"^gemma"), "gemma", "Gemma"), (re.compile(r"^llama\d"), "llama", "Llama"),
+    (re.compile(r"^ds4flash"), "deepseekv4flash", "DeepSeek V4 Flash"),
+    (re.compile(r"^glm[\d.]*flash"), "glmflash", "GLM Flash"),
+    (re.compile(r"^mistral\d+b"), "mistral", "Mistral"), (re.compile(r"^grok\d"), "grok", "Grok"),
+    (re.compile(r"^mimo.*pro"), "mimopro", "MiMo Pro"), (re.compile(r"^(1bit)?bonsai"), "bonsai", "Bonsai"),
+]
+
+
+def merge_model_families(uf, raw, canon_by_root):
+    """Fold model clusters into their family. Returns {family key: (display name, [(old name, users), ...])}."""
+    clusters = defaultdict(list)
+    for m in raw:
+        clusters[uf.find(m["nk"])].append(m)
+    found = defaultdict(list)
+    for root, ms in clusters.items():
+        name = canon_by_root.get(root) or Counter(m["name"] for m in ms).most_common(1)[0][0]
+        cats = [m["p"].get("category") for m in ms]
+        if Counter(map_category(c) for c in cats).most_common(1)[0][0] not in ("ai", "ai-coding") or \
+                not is_model({m["nk"] for m in ms}, cats):
+            continue
+        for rx, key, display in MODEL_FAMILIES:
+            if rx.match(name_key(name)):
+                found[key].append((root, name, len({m["by"] for m in ms})))
+                break
+    families = {}
+    for key, members in found.items():
+        display = next(d for _, k, d in MODEL_FAMILIES if k == key)
+        for root, _, _ in members:
+            uf.union(key, root)
+        families[key] = (display, [(n, u) for _, n, u in members])
+        canon_by_root[uf.find(key)] = display
+    return families
+
+
 def is_model(keys, raw_categories):
     if keys & MODEL_NO:
         return False
@@ -138,7 +184,7 @@ def normalize(r, d):
 
 
 # Distinct products that share a domain, a repo or a family name; never merged, whatever the evidence.
-KEEP_APART = [("pi", "absurd"), ("github", "githubcopilot"), ("zed", "gpui"), ("zed", "deltadb"), ("gpui", "deltadb"),
+KEEP_APART = [("gpt5", "gpt6"), ("pi", "absurd"), ("github", "githubcopilot"), ("zed", "gpui"), ("zed", "deltadb"), ("gpui", "deltadb"),
               ("grapheneos", "vanadium")]
 
 # Model versions roll up to their family; tiers with their own name (DeepSeek V4 Flash, Qwen Code) stay apart.
@@ -376,6 +422,9 @@ def main():
     canon_by_root = {uf.find(keys[0]): name for keys, name in canon.items()}
     canon_by_root.update({uf.find(fk): fname for fk, fname in family_name.items()})
 
+    families = merge_model_families(uf, raw, canon_by_root)
+    family_by_root = {uf.find(k): v for k, v in families.items()}
+
     groups = defaultdict(list)
     for m in raw:
         groups[uf.find(m["nk"])].append(m)
@@ -400,16 +449,24 @@ def main():
         top_cat, top_n = cats.most_common(1)[0]
         if top_cat == "other" and len(cats) > 1:
             top_cat = cats.most_common(2)[1][0]
-        if top_cat in ("ai", "ai-coding") and is_model({m["nk"] for m in ms}, [m["p"].get("category") for m in ms]):
+        if gk in family_by_root or (top_cat in ("ai", "ai-coding") and
+                                    is_model({m["nk"] for m in ms}, [m["p"].get("category") for m in ms])):
             top_cat = "ai-models"
         users = len({m["by"] for m in ms})
         if users >= 5 and top_n / len(ms) < 0.5:
             con.execute("INSERT INTO alias_review(raw_name, candidate_product_ids, status, note) VALUES (?, ?, 'open', ?)",
                         (name, json.dumps([pid]), f"categories split: {dict(cats.most_common(4))}"))
             n_review += 1
-        con.execute("INSERT INTO product(id, slug, name, domain, github_repo, category_id, kind) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (pid, slugify(name, used), name, None if repo else dk, repo, cat_id[top_cat],
-                     kind_of([m["p"].get("category") for m in ms])))
+        slug = slugify(name, used)
+        con.execute("""INSERT INTO product(id, slug, name, domain, github_repo, category_id, kind, is_family)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (pid, slug, name, None if repo else dk, repo, cat_id[top_cat],
+                     kind_of([m["p"].get("category") for m in ms]), int(gk in family_by_root)))
+        for old_name, old_users in family_by_root.get(gk, (None, []))[1]:
+            old_slug = slugify(old_name, set())
+            if old_slug != slug:
+                con.execute("INSERT INTO merged_product(product_id, old_name, old_slug, users) VALUES (?, ?, ?, ?)",
+                            (pid, old_name, old_slug, old_users))
         for alias, c in Counter(m["name"] for m in ms).items():
             con.execute("INSERT INTO alias(product_id, raw_name, n) VALUES (?, ?, ?)", (pid, alias, c))
         for m in ms:

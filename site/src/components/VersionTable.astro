@@ -1,0 +1,30 @@
+---
+import { fmtDate } from "../lib/data";
+interface Props { name: string; versions: any[] }
+const { name, versions } = Astro.props;
+const pct = (n: number, r: any) => Math.round((100 * n) / r.people);
+---
+<div class="vt" role="table" aria-label={`Sentiment for ${name} by version`}>
+  <div class="vt-row vt-head" role="row">
+    <span role="columnheader">Version</span>
+    <span role="columnheader">Sentiment</span>
+    <span role="columnheader">People</span>
+    <span role="columnheader" class="vt-first">First seen</span>
+    <span role="columnheader" class="vt-link"></span>
+  </div>
+  {versions.map((r) => (
+    <div class="vt-row" role="row">
+      <b role="cell">{r.v}</b>
+      <span role="cell" class="vt-sent">
+        <span class="vbar" title={`${r.rec} recommend · ${r.other} use or compare · ${r.warn} warn`}>
+          <i class="s-recommend" style={`width:${(100 * r.rec) / r.people}%`} /><i class="s-neutral" style={`width:${(100 * r.other) / r.people}%`} /><i class="s-warn" style={`width:${(100 * r.warn) / r.people}%`} />
+        </span>
+        <span class="vnums"><b class="vrec">{pct(r.rec, r)}%</b> recommend · <b class="vwarn">{pct(r.warn, r)}%</b> warn</span>
+      </span>
+      <span role="cell">{r.people}</span>
+      <span role="cell" class="vt-first muted">{fmtDate(r.first)}</span>
+      <a role="cell" class="vt-link" href="#comments" data-show-version={r.v} data-people={r.people}>Comments</a>
+    </div>
+  ))}
+</div>
+<div class="legend vlegend"><span><i class="s-recommend" />recommend</span><span><i class="s-neutral" />uses or compares</span><span><i class="s-warn" />warns</span></div>

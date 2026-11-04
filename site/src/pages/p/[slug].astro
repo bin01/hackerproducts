@@ -2,6 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import Icon from "../../components/Icon.astro";
 import HNQuote from "../../components/HNQuote.astro";
+import VersionTable from "../../components/VersionTable.astro";
 import { products, product, monthLabel, fmtDate } from "../../lib/data";
 import catalog from "../../data/catalog.json";
 
@@ -22,6 +23,7 @@ const sections = [
   ["verdict", "Verdict"],
   ["praise", "Praise"],
   ["caveats", "Caveats"],
+  ...(p.versions?.length ? [["versions", "Versions"]] : []),
   ...(p.compared.length ? [["compared", "Compared"]] : []),
   ...(p.who.length ? [["who", "Who"]] : []),
   ["comments", "Comments"],
@@ -114,6 +116,14 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
       ))}
     </div>
 
+    {p.versions?.length > 0 && (
+      <section id="versions" class="p2-sec" data-pagefind-ignore>
+        <h2>By version <span class="muted small">sentiment of people who named that release, oldest release first</span></h2>
+        <VersionTable name={p.name} versions={p.versions} />
+        <p class="small muted">Versions with at least 5 people. {p.version_unnamed.toLocaleString("en")} {p.version_unnamed === 1 ? "person" : "people"} didn't name a version. Small samples swing a lot, so read the counts too. <a href="/models/versions/">Compare all models →</a></p>
+      </section>
+    )}
+
     {p.compared.length > 0 && (
       <section id="compared" class="p2-sec">
         <h2>Often compared with</h2>
@@ -156,10 +166,18 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
           {[["all", "All"], ["recommend", "Recommends"], ["warn", "Warns"], ["compare", "Compares"], ["neutral", "Uses"]].map(([k, l]) => counts[k] > 0 && (
             <button type="button" class:list={["chip", { on: k === "all" }]} data-filter={k}>{l} <span class="muted">{counts[k]}</span></button>
           ))}
+          {p.versions?.length > 0 && (
+            <>
+              <span class="sep" />
+              <button type="button" class="chip on" data-version="">All versions</button>
+              {p.versions.map((r: any) => <button type="button" class="chip" data-version={r.v}>{r.v}</button>)}
+            </>
+          )}
           <span class="sep" />
           <button type="button" class="chip on" data-sort="new">Newest</button>
           <button type="button" class="chip" data-sort="ctx">Most context</button>
         </div>
+        {p.versions?.length > 0 && <p class="small muted vnote" hidden />}
         <div class="clist">
           {p.quotes.map((q: any) => <HNQuote q={q} anchor={!inThemes.has(q.id) && firstAnchor(q.id)} />)}
         </div>
@@ -196,9 +214,35 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
       openFor();
       const list = box.querySelector(".clist");
       const items = [...list.children];
+      let stance = "all", version = "";
+      const apply = () => items.forEach((el) => {
+        el.hidden = (stance !== "all" && el.dataset.stance !== stance) || (version && el.dataset.ver !== version);
+      });
+      const pick = (attr, b) => box.querySelectorAll(`[${attr}]`).forEach((x) => x.classList.toggle("on", x === b));
       box.querySelectorAll("[data-filter]").forEach((b) => b.addEventListener("click", () => {
-        box.querySelectorAll("[data-filter]").forEach((x) => x.classList.toggle("on", x === b));
-        items.forEach((el) => (el.hidden = b.dataset.filter !== "all" && el.dataset.stance !== b.dataset.filter));
+        stance = b.dataset.filter; pick("data-filter", b); apply();
+      }));
+      const setVersion = (v) => {
+        version = v;
+        pick("data-version", box.querySelector(`[data-version="${v}"]`));
+        apply();
+        const note = box.querySelector(".vnote");
+        const row = v && document.querySelector(`[data-show-version="${v}"]`);
+        if (note) {
+          note.hidden = !row;
+          if (row) {
+            const n = items.filter((el) => el.dataset.ver === v).length;
+            note.textContent = `A sample of ${n} comment${n === 1 ? "" : "s"} from the ${row.dataset.people} people who named ${v}.`;
+          }
+        }
+      };
+      box.querySelectorAll("[data-version]").forEach((b) => b.addEventListener("click", () => setVersion(b.dataset.version)));
+      // "Comments" links in the By version table open the list filtered to that release.
+      document.querySelectorAll("[data-show-version]").forEach((a) => a.addEventListener("click", (e) => {
+        e.preventDefault();
+        box.open = true;
+        setVersion(a.dataset.showVersion);
+        box.scrollIntoView({ block: "start" });
       }));
       box.querySelectorAll("[data-sort]").forEach((b) => b.addEventListener("click", () => {
         box.querySelectorAll("[data-sort]").forEach((x) => x.classList.toggle("on", x === b));

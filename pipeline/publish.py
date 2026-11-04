@@ -68,6 +68,45 @@ def official_url(p, official):
     return ""
 
 
+SIZE = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)\s*[bBmM](?![a-zA-Z])")
+MIN_VERSION_PEOPLE = 5  # enough people for a version's sentiment to mean something
+
+
+def version_of(raw):
+    """The release a mention names: "Claude Opus 4.8" -> "4.8", "Qwen 3.6 27B" -> "3.6", "gpt-oss-120b" -> "120B"."""
+    s = re.sub(r"1[- ]bit", "", raw or "", flags=re.I)
+    sizes = SIZE.findall(s)
+    s = re.sub(r"\ba\d+b\b", "", SIZE.sub(" ", s), flags=re.I)
+    for n in re.findall(r"(?<![\d.])\d+(?:\.\d+)?", s):
+        if float(n) < 100:
+            return n[:-2] if n.endswith(".0") else n
+    return f"{sizes[0]}B" if sizes else None
+
+
+def version_table(ms):
+    """Per-version sentiment for one model line, oldest release first. One person counts once per version."""
+    rows = defaultdict(dict)
+    unnamed = set()
+    for m in sorted(ms, key=lambda m: m["time"]):
+        v = version_of(m["raw_name"])
+        if v is None:
+            unnamed.add(m["by"])
+        else:
+            rows[v][m["by"]] = (m["stance"], m["time"][:10])  # their latest stance on this version
+    out = []
+    for v, people in rows.items():
+        if len(people) >= MIN_VERSION_PEOPLE:
+            st = Counter(x[0] for x in people.values())
+            out.append({"v": v, "people": len(people), "rec": st["recommend"], "warn": st["warn"],
+                        "other": st["neutral"] + st["compare"], "first": min(x[1] for x in people.values())})
+    # Sizes ("27B") only count as versions for lines with no release numbers at all, such as gpt-oss.
+    numbered = [r for r in out if not r["v"].endswith("B")]
+    out = numbered or out
+    # Version order is release order; first-seen isn't, since the data only covers one year.
+    out.sort(key=lambda r: float(r["v"].rstrip("B")))
+    return out, len(unnamed)
+
+
 def hn(item_id):
     return f"https://news.ycombinator.com/item?id={item_id}"
 
@@ -98,13 +137,16 @@ def main():
     paged = {pid for pid, s in scores.items() if s["distinct_recommenders"] >= MIN_PAGE
              and (products[pid]["kind"] or "") not in exclude}
 
+    is_model = False  # set per product below; quote_obj reads it
+
     def quote_obj(m):
         return {"id": m["id"], "item_id": m["item_id"], "url": hn(m["item_id"]), "by": m["by"], "date": m["time"][:10],
-                "stance": m["stance"], "quote": m["reason_quote"] if m["quote_verbatim"] else "",
+                "version": version_of(m["raw_name"]) if is_model else None, "stance": m["stance"], "quote": m["reason_quote"] if m["quote_verbatim"] else "",
                 "excerpt": " ".join((m["comment"] or "").split())[:420], "context": m["recommender_context"],
                 "use_case": m["use_case"], "switched_from": m["switched_from"], "story": m["story_title"]}
 
     summaries = []
+    version_lines = []
     shutil.rmtree(EXPORT, ignore_errors=True)
     EXPORT.mkdir(parents=True)
     shutil.rmtree(DATA / "products", ignore_errors=True)
@@ -138,6 +180,12 @@ def main():
         }
         summaries.append(summary)
 
+        is_model = cat["slug"] == MODELS
+        versions, unnamed = version_table(ms) if is_model else ([], 0)
+        versions = versions if len(versions) >= 2 else []
+        if versions:
+            version_lines.append({"slug": p["slug"], "name": p["name"], "recommenders": s["distinct_recommenders"],
+                                  "versions": versions, "icon": summary["icon"]})
         by_id = {m["id"]: m for m in mentions[pid]}
         verdict = None
         if v:
@@ -176,6 +224,14 @@ def main():
             if m["story_id"]:
                 threads[m["story_id"]] += 1
                 titles[m["story_id"]] = m["story_title"]
+        # Newest 40 comments, plus enough from each version for its filter to show something.
+        shown = {m["id"] for m in ms[:40]}
+        by_version = Counter()
+        for m in ms:
+            v = version_of(m["raw_name"]) if versions else None
+            if v in {r["v"] for r in versions} and by_version[v] < 8:
+                by_version[v] += 1
+                shown.add(m["id"])
         detail = {
             **summary,
             "domain": p["domain"], "github_repo": p["github_repo"], "official_url": official_url(p, official),
@@ -185,7 +241,8 @@ def main():
             "makers": [quote_obj(m) for m in makers[:6]],
             "threads": [{"url": hn(sid), "title": titles[sid] or f"item {sid}", "mentions": n} for sid, n in threads.most_common(6)],
             "sentiment_by_month": {mo: sbm.get(mo, {}) for mo in MONTHS},
-            "quotes": [quote_obj(m) for m in ms if m in ms[:40] or m["id"] in cited],
+            "versions": versions, "version_unnamed": unnamed,
+            "quotes": [quote_obj(m) for m in ms if m["id"] in shown or m["id"] in cited],
         }
         (DATA / "products" / f"{p['slug']}.json").write_text(json.dumps(detail))
 
@@ -210,6 +267,7 @@ def main():
         "categories": [{"slug": c["slug"], "name": c["name"], "count": cat_counts[c["slug"]]}
                        for c in sorted(cats.values(), key=lambda c: -cat_counts[c["slug"]]) if cat_counts[c["slug"]]],
         "products": summaries, "home": home,
+        "version_lines": sorted(version_lines, key=lambda x: -x["recommenders"]),
     }
     (DATA / "catalog.json").write_text(json.dumps(catalog))
     listed = [s for s in summaries if s["listed"]]
@@ -231,6 +289,12 @@ def main():
             shutil.copy(DATA / "products" / f"{s['slug']}.json", EXPORT / "p" / f"{s['slug']}.json")
     for c in catalog["categories"]:
         (EXPORT / f"category-{c['slug']}.json").write_text(json.dumps(compact([s for s in listed if s["category"] == c["slug"]]), indent=1))
+    # Product URLs that no longer exist because a release rolled up into its line.
+    moved = con.execute("""SELECT mp.old_slug, p.slug FROM merged_product mp JOIN product p ON p.id = mp.product_id
+                           WHERE mp.users >= 2""").fetchall()
+    live = {x["slug"] for x in summaries}
+    lines = [f"/p/{o}/ /p/{n}/ 301" for o, n in moved if o not in live and n in live]
+    (SITE / "public" / "_redirects").write_text("\n".join(lines) + "\n")
     print(f"published {len(summaries):,} product pages ({stats['listed']:,} listed), {len(catalog['categories'])} categories, "
           f"{stats['verdicts']} verdicts")
     return 0

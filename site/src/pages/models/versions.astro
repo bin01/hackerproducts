@@ -1,0 +1,32 @@
+---
+import Base from "../../layouts/Base.astro";
+import Icon from "../../components/Icon.astro";
+import catalog from "../../data/catalog.json";
+
+const lines = catalog.version_lines;
+const pct = (n: number, r: any) => Math.round((100 * n) / r.people);
+---
+<Base title="Model sentiment by version" active="categories" description="How Hacker News commenters received each release of the major AI models.">
+  <h1 style="font-size:18px">Model sentiment by version</h1>
+  <p class="lede">How HN commenters received each release, oldest first. Each bar shows the people who named that version: green recommends, grey uses or compares, red warns. Only versions with at least 5 people are shown, and the number under each bar is the sample size, so treat small ones with care. Most comments are from one year ({catalog.stats.window}).</p>
+  <div class="legend vlegend"><span><i class="s-recommend" />recommend</span><span><i class="s-neutral" />uses or compares</span><span><i class="s-warn" />warns</span></div>
+  <div class="vlines">
+    {lines.map((l: any) => (
+      <section class="vline">
+        <h2><a href={`/p/${l.slug}/#versions`}><Icon p={{ slug: l.slug, name: l.name, icon: l.icon }} />{l.name}</a></h2>
+        <div class="vcells">
+          {l.versions.map((r: any) => (
+            <div class="vcell" title={`${l.name} ${r.v}: ${r.rec} recommend, ${r.other} use or compare, ${r.warn} warn`}>
+              <b>{r.v}</b>
+              <span class="vbar">
+                <i class="s-recommend" style={`width:${(100 * r.rec) / r.people}%`} /><i class="s-neutral" style={`width:${(100 * r.other) / r.people}%`} /><i class="s-warn" style={`width:${(100 * r.warn) / r.people}%`} />
+              </span>
+              <span class="vnums"><b class="vrec">{pct(r.rec, r)}%</b> <b class="vwarn">{pct(r.warn, r)}%</b></span>
+              <span class="vn">{r.people} people</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    ))}
+  </div>
+</Base>

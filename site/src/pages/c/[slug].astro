@@ -16,6 +16,7 @@ const items = listed.filter((p) => p.category === c.slug);
   </div>
   <h1 style="font-size:18px">{c.name}</h1>
   <p class="lede">What HN commenters recommend, ranked by distinct recommenders. Under each: what people praise most and the most common caveat, or the strongest quote where there is no summary yet.</p>
+  {c.slug === "ai-models" && <p class="lede"><a href="/models/versions/">Sentiment by version: how each release was received →</a></p>}
   <ListTools title={c.name} items={items} json={`/export/category-${c.slug}.json`} />
   <ProductList items={items} showCategory={false} />
 </Base>
