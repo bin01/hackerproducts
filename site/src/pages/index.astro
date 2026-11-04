@@ -88,7 +88,7 @@ const sparkMax = (v: number[]) => Math.max(1, ...v);
           {p.spark.map((v, j) => <rect x={j * 5} y={16 - (14 * v) / sparkMax(p.spark) - 1} width="4" height={(14 * v) / sparkMax(p.spark) + 1} opacity={v ? 1 : 0.25} />)}
         </svg>
         {(p as any).latest_version && (() => { const l = (p as any).latest_version; return (
-          <span class="vlatest">{l.label}: <b class="vrec">{Math.round((100 * l.rec) / l.people)}%</b> recommend · <b class="vwarn">{Math.round((100 * l.warn) / l.people)}%</b> warn</span>
+          <span class="vlatest">{l.label}: <b>{l.love}% loved</b> · {l.people} people</span>
         ); })()}
       </li>
     ))}

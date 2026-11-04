@@ -83,7 +83,7 @@ p.quotes.forEach((q: any) => counts[q.stance]++);
           <span class="vbar" title={`${latest.rec} recommend · ${latest.other} use or compare · ${latest.warn} warn`}>
             <i class="s-recommend" style={`width:${(100 * latest.rec) / latest.people}%`} /><i class="s-neutral" style={`width:${(100 * latest.other) / latest.people}%`} /><i class="s-warn" style={`width:${(100 * latest.warn) / latest.people}%`} />
           </span>
-          <span><b class="vrec">{Math.round((100 * latest.rec) / latest.people)}%</b> recommend · <b class="vwarn">{Math.round((100 * latest.warn) / latest.people)}%</b> warn · {latest.people} people</span>
+          <span><b>{latest.love}% loved</b> · {latest.people} people · <a href="/models/versions/">how this works</a></span>
         </div>
       )}
       <div class="p2-months" title="People with a stance per month">

@@ -67,7 +67,7 @@ MODEL_NO = {"claudecowork", "grokcode", "grokbot", "claudepro", "claudeteam", "c
             "chatgptpro", "chatgptplus", "chatgptwork", "geminiapi", "geminicanvas", "gemininotebook", "geminideepresearch",
             "deepseekapi", "mistralapi", "mistralforge", "byteplusapi", "stepplan", "crofai", "falai", "chutes", "venice",
             "modelscope", "marginlab", "nvidianim", "openrouterfusion", "kagiassistant", "duckai", "lumo", "confer", "chatjimmy",
-            "copilot", "microsoftcopilot", "microsoft365copilot", "moltis", "googleai"}
+            "copilot", "microsoftcopilot", "microsoft365copilot", "moltis", "googleai", "appleintelligence", "eliza"}
 
 
 # Named model lines stay separate products (Claude Opus, Gemini Flash, GPT Sol, DeepSeek V4 Pro). Point releases and

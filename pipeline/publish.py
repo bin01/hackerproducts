@@ -155,18 +155,21 @@ def family_rollup(ms):
             "months": {k: dict(v) for k, v in months.items()}}
 
 
-def latest_of(lines):
-    """The newest release across model lines, largest line first on ties. Lines known only by size have no "latest"."""
+def latest_of(lines, mentions_of):
+    """The newest current release across model lines, largest line first on ties, with its love score.
+    Same numbers as the charts: only comments from while it was newest, and at least 10 people."""
+    from compare import line_releases, love, release_label
     best, label = None, None
     for line in lines:
-        r = line["versions"][0]
-        if r["v"].endswith("B"):
-            continue
-        if best is None or float(r["v"]) > float(best["v"]):
-            best = r
-            head = re.match(r"(.*?)(\d+)$", line["name"])
-            label = f"{head[1]}{r['v']}" if head and r["v"].startswith(head[2]) else f"{line['name']} {r['v']}"
-    return best and {"label": label, "people": best["people"], "rec": best["rec"], "warn": best["warn"], "other": best["other"]}
+        for r in line_releases([m for m in mentions_of(line["slug"]) if not m["affiliated"]]):
+            w = r["in_window"]
+            rank = (float(r["version"]), r["all_time"]["people"]) if r["current"] else None
+            if r["current"] and w["people"] >= 10 and love(w) is not None and (best is None or rank > (float(best["version"]), best["all_time"]["people"])):
+                best, label = r, release_label(line["name"], r["version"])
+    if not best:
+        return None
+    w = best["in_window"]
+    return {"label": label, "love": love(w), "people": w["people"], "rec": w["recommend"], "warn": w["warn"], "other": w["neutral"] + w["compare"]}
 
 
 def hn(item_id):
@@ -353,16 +356,19 @@ def main():
     cat_counts = Counter(s["category"] for s in summaries if s["listed"] and not s.get("family"))
     # The family page shows every tier's version table; /models/versions/ groups lines under their family.
     line_by_slug = {x["slug"]: x for x in version_lines}
+    pid_by_slug = {o["slug"]: q for q, o in products.items()}
+    mentions_of = lambda slug: mentions[pid_by_slug[slug]]
     version_families = []
     for x in summaries:
         if x["category"] != MODELS or x.get("family"):
             continue
+        fam_pid = pid_by_slug[x["slug"]]
+        lv = latest_of([{"slug": products[q]["slug"], "name": products[q]["name"]} for q in [fam_pid, *tiers.get(fam_pid, [])]], mentions_of)
+        if lv:
+            x["latest_version"] = lv
         own = line_by_slug.get(x["slug"])
         kids = sorted((l for l in version_lines if l["family"] == x["slug"]), key=lambda l: -l["recommenders"])
         if own or kids:
-            lv = latest_of(kids + ([own] if own else []))
-            if lv:
-                x["latest_version"] = lv
             version_families.append({"slug": x["slug"], "name": x["name"], "icon": x["icon"], "recommenders": x["recommenders"],
                                      "lines": kids + ([own] if own else [])})
     def update_detail(slug, **fields):
@@ -375,7 +381,7 @@ def main():
         update_detail(fam["slug"], **fields)
     for line in version_lines:
         if line["family"]:
-            update_detail(line["slug"], latest_version=latest_of([line]))
+            update_detail(line["slug"], latest_version=latest_of([line], mentions_of))
     stats = {
         "comments": duckdb.sql(f"SELECT count(DISTINCT id) FROM read_parquet('{ROOT}/data/raw/month=*/*.parquet', union_by_name=true) "
                                "WHERE type = 2 AND time >= '2025-11-01'").fetchall()[0][0],

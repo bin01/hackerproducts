@@ -34,7 +34,7 @@ const sparkMax = (p: Summary) => Math.max(1, ...p.spark);
         </span>
       </div>
       {(p as any).latest_version && (() => { const l = (p as any).latest_version; return (
-        <div class="why vlatest"><span class="muted">Latest</span> {l.label}: <b class="vrec">{Math.round((100 * l.rec) / l.people)}%</b> recommend · <b class="vwarn">{Math.round((100 * l.warn) / l.people)}%</b> warn · <span class="muted">{l.people} people</span></div>
+        <div class="why vlatest"><span class="muted">Latest</span> {l.label}: <b>{l.love}% loved</b> · <span class="muted">{l.people} people</span></div>
       ); })()}
       {p.loved.length > 0 ? (
         <div class="why hook">
