@@ -109,13 +109,13 @@ def version_table(ms):
 
 # One row per model family in the AI models list. Tiers keep their own pages, linked from the family page.
 FAMILY_RULES = [
-    ("claude", r"claude-"), ("gpt", r"gpt-(?!oss)|o[134](-|$)"), ("gemini", r"gemini-"), ("deepseek", r"deepseek-"),
+    ("claude", r"claude-"), ("gpt", r"gpt-(?!oss)|o[134](-|$)|chatgpt$"), ("gemini", r"gemini-"), ("deepseek", r"deepseek-"),
     ("glm", r"glm-|z-ai$"), ("mistral", r"mistral-|ministral|devstral|codestral|voxtral|magistral|le-chat$"),
     ("gemma", r"(diffusion|function|med|t|pali|shield)gemma|gemma-"), ("qwen", r"qwen-"), ("muse", r"muse-"), ("mimo", r"mimo-"),
     ("nemotron", r"nemotron-"), ("nano-banana", r"nano-banana-"), ("grok", r"grok-"), ("flux", r"flux-"),
     ("kimi", r"kimi-"), ("llama", r"llama-"), ("minimax", r"minimax-"), ("whisper", r"whisper-"), ("ornith", r"ornith-"),
 ]
-ASSISTANT_OF = {"chatgpt": "gpt"}  # the consumer assistant keeps its own row; its models are in the family it names
+ASSISTANT_OF = {}  # consumer assistants that keep their own row; none now that ChatGPT is a line of GPT, as Le Chat is of Mistral
 
 
 def family_parents(products, cats):
