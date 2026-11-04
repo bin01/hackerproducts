@@ -48,6 +48,9 @@ def main():
         return con.execute("SELECT count(DISTINCT i.by) FROM mention x JOIN hn_item i ON i.id = x.item_id WHERE x.affiliated = 0 AND x.stance = 'recommend' AND x.product_id IN (%s)"
                            % ",".join(str(q) for q in [pid, *tiers[pid]])).fetchone()[0]
     top = sorted(tiers, key=people, reverse=True)[:TOP_FAMILIES]
+    only = set(sys.argv[1:])  # slugs to limit this run to
+    if only:
+        top = [pid for pid in top if products[pid]["slug"] in only]
     template = (ROOT / "prompts" / f"{synth.VERSION}.md").read_text()
     CACHE.mkdir(parents=True, exist_ok=True)
     jobs = []
