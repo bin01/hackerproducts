@@ -58,22 +58,25 @@ def compare(cat):
 
 
 def versions(cat):
-    rel = cat["compare"]["releases"]
-    seen, rows = set(), []
-    for x in sorted((x for x in rel if x["cur"] and x["p"] >= 50), key=lambda x: -x["r"] / (x["r"] + x["w"])):
-        if x["f"] not in seen:
-            seen.add(x["f"])
-            rows.append(x)
-    rows = rows[:5]
+    def top(is_open):
+        seen, rows = set(), []
+        for x in sorted((x for x in cat["compare"]["releases"] if x["cur"] and x["o"] == is_open), key=lambda x: -x["r"] / (x["r"] + x["w"])):
+            if x["f"] not in seen:
+                seen.add(x["f"])
+                rows.append(x)
+        return rows[:3]
     im, d = base("Which AI models are loved?", "What HN commenters say about the releases out now")
-    y = 300
-    for x in rows:
-        love = x["r"] / (x["r"] + x["w"])
-        d.text((70, y), x["l"], font=f(24, True), fill=TEXT, anchor="lm")
-        w = 420 * love
-        d.rounded_rectangle((480, y - 13, 480 + w, y + 13), 5, fill=LOVE)
-        d.text((480 + w + 14, y), f"{round(love * 100)}%  ·  {x['p']} people", font=f(23), fill=MUTED, anchor="lm")
-        y += 50
+    for col, (label, rows) in enumerate((("Closed models", top(False)), ("Open weights", top(True)))):
+        x0 = 70 + col * 545
+        d.text((x0, 296), label, font=f(22, True), fill=MUTED, anchor="lm")
+        y = 334
+        for x in rows:
+            love = x["r"] / (x["r"] + x["w"])
+            d.text((x0, y), x["l"], font=f(23, True), fill=TEXT, anchor="lm")
+            d.rounded_rectangle((x0, y + 18, x0 + 400, y + 30), 4, fill=MID)
+            d.rounded_rectangle((x0, y + 18, x0 + 400 * love, y + 30), 4, fill=LOVE)
+            d.text((x0 + 412, y + 24), f"{round(love * 100)}%", font=f(22), fill=MUTED, anchor="lm")
+            y += 66
     foot(d, "Love score: recommend ÷ (recommend + warn), while each release was the newest")
     im.save(OUT / "versions.png", optimize=True)
 

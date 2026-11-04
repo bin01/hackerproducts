@@ -27,30 +27,32 @@ let nAi = 0;
 const risingMix = rising.filter((p) => !AI.has(p.category) || nAi++ < 2).slice(0, 5);
 const gems = home.gems.map((s) => bySlug[s]).filter(Boolean);
 const sparkMax = (v: number[]) => Math.max(1, ...v);
-// The two most loved closed and open-weight releases out now, one per family, with enough people to mean something.
+// Like with like: the three most loved closed and open-weight releases out now, one per family, using the charts' rules.
 const loveScore = (x: any) => x.r / (x.r + x.w);
-const lovedNow = (() => {
-  const ranked = [...(catalog as any).compare.releases].filter((x: any) => x.cur && x.p >= 50).sort((a: any, b: any) => loveScore(b) - loveScore(a));
-  const top = (open: boolean) => {
-    const seen = new Set();
-    return ranked.filter((x: any) => x.o === open && !seen.has(x.f) && seen.add(x.f)).slice(0, 2);
-  };
-  return [...top(false), ...top(true)];
-})();
+const lovedRow = (open: boolean) => {
+  const seen = new Set();
+  return [...(catalog as any).compare.releases].filter((x: any) => x.cur && x.o === open).sort((a: any, b: any) => loveScore(b) - loveScore(a))
+    .filter((x: any) => !seen.has(x.f) && seen.add(x.f)).slice(0, 3);
+};
+const lovedRows = [["Closed models", lovedRow(false)], ["Open weights", lovedRow(true)]] as [string, any[]][];
 ---
 <Base active="home">
-  <a class="loved-now" href="/models/versions/">
+  <a class="loved-now" href="/models/versions/#rank,now,all">
     <span class="loved-hd"><b>Which AI models are loved right now?</b> <span class="muted small">see all the charts →</span></span>
-    <span class="loved-grid">
-      {lovedNow.map((x: any) => (
-        <span class="loved-item">
-          <span class="loved-kind">{x.o ? "Open weights" : "Closed"}</span>
-          <span class="loved-name">{x.l}</span>
-          <span class="vbar"><i style={`width:${100 * loveScore(x)}%;background:var(--love)`} /></span>
-          <span class="muted small">{Math.round(100 * loveScore(x))}% loved · {x.p} people</span>
+    {lovedRows.map(([label, rows]) => (
+      <span class="loved-row">
+        <span class="loved-kind">{label}</span>
+        <span class="loved-grid">
+          {rows.map((x: any) => (
+            <span class="loved-item">
+              <span class="loved-name">{x.l}</span>
+              <span class="vbar"><i style={`width:${100 * loveScore(x)}%;background:var(--love)`} /></span>
+              <span class="muted small">{Math.round(100 * loveScore(x))}% loved · {x.p} people</span>
+            </span>
+          ))}
         </span>
-      ))}
-    </span>
+      </span>
+    ))}
   </a>
   <div class="chips home-chips">
     {chips.map((c) => <a class="chip" href={`/c/${c.slug}/`}>{c.name}</a>)}
