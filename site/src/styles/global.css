@@ -398,3 +398,7 @@ details.allc[open] > summary::after { content: "Hide ↑"; }
   .loved-name { white-space: normal; }
   .nav { gap: 9px; font-size: 12.5px; }
 }
+
+/* Dark marks on a transparent background vanish on the dark theme: back them with a light tile, dark mode only. */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ico-tile { background: #e6e4dc; border-radius: 3px; padding: 1px; } }
+:root[data-theme="dark"] .ico-tile { background: #e6e4dc; border-radius: 3px; padding: 1px; }
