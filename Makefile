@@ -59,3 +59,10 @@ serve:
 deploy: site
 	cd site && npx --yes wrangler pages project list | grep -q '^│ hackerproducts ' || npx --yes wrangler pages project create hackerproducts --production-branch main
 	cd site && npx --yes wrangler pages deploy dist --project-name hackerproducts --branch main --commit-dirty=true
+
+# Family-wide themes for the top AI model families (about 11 Opus calls, cached), and aggregates for chart prototypes.
+family-synth:
+	uv run pipeline/family_synth.py
+
+model-stats:
+	uv run pipeline/model_stats.py data/transfer/models/model_stats.json

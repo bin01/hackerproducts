@@ -206,6 +206,16 @@ def main():
     for child, parent in parent_of.items():
         tiers[parent].append(child)
     rollups = {parent: family_rollup([m for q in [parent, *kids] for m in mentions[q]]) for parent, kids in tiers.items()}
+    # Family-wide verdict and themes (family_synth.py) replace those written from plain mentions alone.
+    for parent in tiers:
+        f = ROOT / "data" / "synth" / "family_v1" / f"{products[parent]['slug']}.json"
+        if f.exists():
+            o = json.loads(f.read_text())
+            if o["verdict"]:
+                verdicts[parent] = {"text": " ".join(c["text"] for c in o["verdict"]), "clauses": json.dumps(o["verdict"]),
+                                    "use_case_tags": json.dumps(o["use_case_tags"])}
+                themes[parent] = [{"polarity": pol, "label": t["label"], "summary": t["summary"], "mention_ids": json.dumps(t["quotes"])}
+                                  for pol, key in (("praise", "praise"), ("caveat", "caveats")) for t in o[key]]
     # A family's page exists whenever the family has enough people, even if few people use its bare name.
     paged |= {parent for parent, r in rollups.items() if r["recommenders"] >= MIN_PAGE and (products[parent]["kind"] or "") not in exclude and parent in scores}
 
@@ -269,7 +279,8 @@ def main():
         if versions:
             version_lines.append({"slug": p["slug"], "name": p["name"], "recommenders": summary["recommenders"], "unnamed": unnamed,
                                   "family": summary.get("family"), "versions": versions, "icon": summary["icon"]})
-        by_id = {m["id"]: m for m in mentions[pid]}
+        family_ms = [m for q in tiers.get(pid, []) for m in mentions[q]]
+        by_id = {m["id"]: m for m in mentions[pid] + family_ms}
         verdict = None
         if v:
             verdict = [{"text": c["text"], "cites": [quote_obj(by_id[i]) for i in c["cites"] if i in by_id]}
@@ -332,7 +343,7 @@ def main():
                               "icon": (SITE / "public" / "icons" / f"{products[q]['slug']}.ico").exists(),
                               **people_stance([m for m in mentions[q] if not m["affiliated"]])}
                              for q in tiers.get(pid, []) if q in paged), key=lambda x: -x["recommenders"]),
-            "quotes": [quote_obj(m) for m in ms if m["id"] in shown or m["id"] in cited],
+            "quotes": [quote_obj(m) for m in ms if m["id"] in shown or m["id"] in cited] + [quote_obj(m) for m in family_ms if m["id"] in cited],
         }
         (DATA / "products" / f"{p['slug']}.json").write_text(json.dumps(detail))
 
@@ -384,7 +395,14 @@ def main():
         "products": summaries, "home": home,
         "version_families": sorted(version_families, key=lambda x: -x["recommenders"]),
     }
+    from compare import Ctx, page_data  # imported here: compare.py uses helpers from this module
+    from resolve import name_key
+    alias = {}
+    for pid_, raw_ in con.execute("SELECT product_id, raw_name FROM alias ORDER BY n"):
+        alias[name_key(raw_)] = pid_
+    catalog["compare"], compare_quotes = page_data(Ctx(products, cats, mentions, alias), summaries)
     (DATA / "catalog.json").write_text(json.dumps(catalog))
+    (EXPORT / "compare-quotes.json").write_text(json.dumps(compare_quotes, separators=(",", ":")))
     listed = [s for s in summaries if s["listed"]]
     # Full dump (minified) for the About page; small per-list files for the JSON buttons.
     (EXPORT / "products.json").write_text(json.dumps({"generated_at": catalog["generated_at"], "stats": stats, "products": listed},

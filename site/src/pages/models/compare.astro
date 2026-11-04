@@ -1,0 +1,181 @@
+---
+import Base from "../../layouts/Base.astro";
+import Icon from "../../components/Icon.astro";
+import catalog from "../../data/catalog.json";
+
+const c = (catalog as any).compare;
+const pct = (n: number, d: number) => Math.round((100 * n) / d);
+const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+const flowMax = Math.max(...c.flows.map((f: any) => f.people));
+const gridMax = Math.max(...Object.values(c.grid.counts) as number[]);
+const pairCount = (a: string, b: string) => c.grid.counts[`${a}:${b}`] ? [c.grid.counts[`${a}:${b}`], `pair:${a}:${b}`] : c.grid.counts[`${b}:${a}`] ? [c.grid.counts[`${b}:${a}`], `pair:${b}:${a}`] : [0, ""];
+---
+<Base title="AI models compared" active="categories" description="All the feedback from Hacker News commenters on AI models in one page: who is recommended, what for, and who people are switching to.">
+  <h1 style="font-size:18px">AI models compared</h1>
+  <p class="lede">What HN commenters said about each model family from {catalog.stats.window}. Each person counts once per family. Open any number to read the comments behind it.</p>
+
+  <section class="cmp-sec" id="table">
+    <h2>All families</h2>
+    <div class="cmp-sort" role="group" aria-label="Sort families">
+      <span class="muted small">Sort by</span>
+      <button type="button" class="chip on" data-sort="people">Recommenders</button>
+      <button type="button" class="chip" data-sort="pct">% recommend</button>
+      <button type="button" class="chip" data-sort="net">Latest release</button>
+    </div>
+    <div class="cmp-scroll" tabindex="0">
+      <table class="cmp-table" id="famtable">
+        <thead><tr><th>Family</th><th class="num">Recommend</th><th>Sentiment</th><th>Latest release</th><th>Praised for</th><th>Top caveat</th></tr></thead>
+        <tbody>
+          {c.table.map((r: any) => (
+            <tr data-people={r.recommenders} data-pct={pct(r.rec, r.people)} data-net={r.latest ? r.latest.net : -999}>
+              <th scope="row"><a href={`/p/${r.slug}/`}><Icon p={r} />{r.name}</a></th>
+              <td class="num">{r.recommenders.toLocaleString("en")}</td>
+              <td class="cmp-sent">
+                <span class="vbar" title={`${r.rec} recommend · ${r.other} use or compare · ${r.warn} warn, of ${r.people} people`}>
+                  <i class="s-recommend" style={`width:${(100 * r.rec) / r.people}%`} /><i class="s-neutral" style={`width:${(100 * r.other) / r.people}%`} /><i class="s-warn" style={`width:${(100 * r.warn) / r.people}%`} />
+                </span>
+                <span class="vnums"><b class="vrec">{pct(r.rec, r.people)}%</b> · <b class="vwarn">{pct(r.warn, r.people)}%</b> of {r.people.toLocaleString("en")}</span>
+              </td>
+              <td class="cmp-latest">
+                {r.latest ? (
+                  <>
+                    <a href={`/p/${r.latest.slug}/?v=${encodeURIComponent(r.latest.v)}#comments`}>{r.latest.label}</a>
+                    <span class="vnums">net {signed(r.latest.net)} of {r.latest.people}{r.latest.delta !== null && <> · {r.latest.delta >= 0 ? "▲" : "▼"} {signed(r.latest.delta)} vs {r.latest.prev}</>}</span>
+                  </>
+                ) : <span class="muted small">no release with 10+ people</span>}
+              </td>
+              <td class="small">{r.praise.join(", ") || <span class="muted">not summarized yet</span>}</td>
+              <td class="small">{r.caveat || <span class="muted">not summarized yet</span>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted">Recommend counts anyone who recommended the family at least once. The bar uses each person's latest stance, so its % can be lower. Net is % recommend minus % warn among people commenting while that release was the newest in its line, starting from its third mention. Model pages show all-time numbers for a version, so they can differ. Praise and caveats cover each of the top 11 families across all its tiers, and are written by a model from cited comments.</p>
+  </section>
+
+  <section class="cmp-sec" id="best">
+    <h2>Best for</h2>
+    <p class="small muted" style="margin-top:0">% of people recommending the model for that job, over the number of people who mentioned it for that job. Darker green means more recommend it. Open a cell to read comments.</p>
+    <div class="cmp-scroll" tabindex="0">
+      <table class="cmp-table cmp-matrix">
+        <thead><tr><th>Family</th>{c.buckets.map((b: any) => <th>{b.label}</th>)}</tr></thead>
+        <tbody>
+          {c.matrix.map((r: any) => (
+            <tr>
+              <th scope="row"><a href={`/p/${r.slug}/`}><Icon p={r} />{r.name}</a></th>
+              {c.buckets.map((b: any) => {
+                const x = r.cells[b.key];
+                return x
+                  ? <td style={`background:color-mix(in srgb, var(--rec) ${Math.round(x.pct * 0.7)}%, transparent)`}><button type="button" class="cmp-cell" data-q={`cell:${r.slug}:${b.key}`} data-title={`${r.name}: ${b.label}`} data-target="best-q"><b>{x.pct}%</b><span>{x.people}</span></button></td>
+                  : <td class="muted">·</td>;
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <div class="cmp-quotes" id="best-q" hidden></div>
+    <p class="small muted">The job comes from a keyword match on the use a comment states, plus the category label when it names a job (for example "AI image model"). About 4 in 10 mentions state a usable job, so these are samples of those comments, not of all users. One comment can count under several jobs. Cells with fewer than 5 people are hidden.</p>
+  </section>
+
+  <section class="cmp-sec" id="head">
+    <h2>Head to head</h2>
+    <div class="cmp-scroll" tabindex="0">
+      <table class="cmp-table cmp-grid">
+        <thead><tr><th></th>{c.grid.families.map((f: any) => <th>{f.name}</th>)}</tr></thead>
+        <tbody>
+          {c.grid.families.map((a: any, i: number) => (
+            <tr>
+              <th scope="row">{a.name}</th>
+              {c.grid.families.map((b: any, j: number) => {
+                if (j <= i) return <td class="cmp-blank"></td>;
+                const [n, key] = pairCount(a.slug, b.slug) as [number, string];
+                return n
+                  ? <td style={`background:color-mix(in srgb, var(--accent) ${Math.round(45 * (n as number) / gridMax)}%, transparent)`}><button type="button" class="cmp-cell" data-q={key} data-title={`${a.name} and ${b.name}`} data-target="head-q"><b>{n}</b></button></td>
+                  : <td class="muted">·</td>;
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted">Comments naming both families, or listing one as the alternative to the other.</p>
+    <ol class="cmp-pairs">
+      {c.pairs.map((p: any) => {
+        const clear = p.a_pref + p.b_pref || 1;
+        return (
+          <li>
+            <div class="cmp-pair-hd"><a href={`/p/${p.a_slug}/`}>{p.a}</a> <span class="muted">vs</span> <a href={`/p/${p.b_slug}/`}>{p.b}</a> <button type="button" class="linkish" data-q={p.key} data-title={`${p.a} and ${p.b}`} data-target="head-q">{p.comments} comments</button></div>
+            <div class="cmp-pref">
+              <span class="small">{p.a_pref} favor {p.a}</span>
+              <span class="vbar" title={`${p.a_pref} favor ${p.a}, ${p.b_pref} favor ${p.b}, ${p.comments - p.a_pref - p.b_pref} show no clear preference`}><i class="s-a" style={`width:${(100 * p.a_pref) / clear}%`} /><i class="s-b" style={`width:${(100 * p.b_pref) / clear}%`} /></span>
+              <span class="small">{p.b_pref} favor {p.b}</span>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+    <div class="cmp-quotes" id="head-q" hidden></div>
+    <p class="small muted">A comment favors a model when it recommends that one and warns about or only compares the other, or says the person switched to it. Most comments show no clear preference, so the bars compare only the ones that do.</p>
+  </section>
+
+  <section class="cmp-sec" id="switching">
+    <h2>Who's switching</h2>
+    <ol class="cmp-flows">
+      {c.flows.map((f: any) => (
+        <li>
+          <span class="cmp-flow-name"><a href={`/p/${f.from_slug}/`}>{f.from}</a> → <a href={`/p/${f.to_slug}/`}>{f.to}</a></span>
+          <span class="cmp-flow-bar"><i style={`width:${(100 * f.people) / flowMax}%`} /></span>
+          <button type="button" class="linkish" data-q={f.key} data-title={`${f.from} to ${f.to}`} data-target="switch-q">{f.people}</button>
+          <span class="small muted cmp-flow-back">{f.back} went back the other way</span>
+        </li>
+      ))}
+    </ol>
+    <div class="cmp-quotes" id="switch-q" hidden></div>
+    <p class="small muted">People who said they moved from one family to another, {c.flow_total} in all. It's a small sample of people who chose to say so.</p>
+  </section>
+
+  <script is:inline>
+    (() => {
+      const body = document.querySelector("#famtable tbody");
+      document.querySelectorAll("[data-sort]").forEach((b) => b.addEventListener("click", () => {
+        document.querySelectorAll("[data-sort]").forEach((x) => x.classList.toggle("on", x === b));
+        const k = b.dataset.sort;
+        [...body.children].sort((x, y) => Number(y.dataset[k]) - Number(x.dataset[k])).forEach((r) => body.appendChild(r));
+      }));
+      let data;
+      const label = { recommend: "recommends", neutral: "uses it", compare: "compares", warn: "warns" };
+      const line = (q) => {
+        const d = document.createElement("div"); d.className = "hq";
+        const hd = document.createElement("div"); hd.className = "hq-hd";
+        const by = document.createElement("a"); by.className = "hq-by"; by.href = `https://news.ycombinator.com/user?id=${q.by}`; by.textContent = q.by;
+        const date = document.createElement("a"); date.href = q.url; date.textContent = q.date;
+        const st = document.createElement("span"); st.className = `st-${q.stance}`; st.textContent = `${label[q.stance]} · ${q.name}`;
+        hd.append(by, date, st);
+        const p = document.createElement("p"); p.textContent = `“${q.quote}”`;
+        d.append(hd, p);
+        return d;
+      };
+      document.addEventListener("click", async (e) => {
+        const b = e.target.closest("[data-q]");
+        if (!b) return;
+        const box = document.getElementById(b.dataset.target);
+        box.hidden = false;
+        box.textContent = "Loading…";
+        try {
+          data ||= await fetch("/export/compare-quotes.json").then((r) => r.json());
+        } catch {
+          box.textContent = "Couldn't load the comments.";
+          return;
+        }
+        const rows = data[b.dataset.q] || [];
+        const h = document.createElement("h3"); h.textContent = b.dataset.title;
+        box.replaceChildren(h);
+        rows.forEach((r) => (Array.isArray(r) ? r : [r]).forEach((q) => box.append(line(q))));
+        if (!rows.length) box.append("No short quotes available for this one.");
+        box.scrollIntoView({ block: "nearest" });
+      });
+    })();
+  </script>
+</Base>

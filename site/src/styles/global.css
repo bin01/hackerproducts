@@ -301,3 +301,51 @@ details.allc[open] > summary::after { content: "Hide ↑"; }
 .vcell { display: flex; flex-direction: column; gap: 3px; font-size: 13px; min-width: 0; }
 .vcell .vnums b { font-weight: normal; margin-right: 4px; }
 .vn { font-size: 11px; color: var(--muted); }
+
+/* AI models compared */
+.cmp-sec { margin-top: 26px; }
+.cmp-sec > h2 { font-size: 15px; margin: 0 0 8px; }
+.cmp-sort { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.cmp-scroll { overflow-x: auto; }
+.cmp-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.cmp-table th, .cmp-table td { padding: 7px 8px; border-top: 1px solid var(--rule); text-align: left; vertical-align: top; }
+.cmp-table thead th { border-top: 0; font-size: 11px; font-weight: normal; color: var(--muted); }
+.cmp-table tbody th { font-weight: bold; white-space: nowrap; position: sticky; left: 0; background: var(--bg); }
+.cmp-table tbody th a { text-decoration: none; }
+.cmp-table .num { text-align: right; }
+.cmp-sent { min-width: 130px; }
+.cmp-sent .vbar { margin-bottom: 3px; }
+.cmp-latest { min-width: 150px; }
+.cmp-latest .vnums { display: block; }
+#famtable td.small { min-width: 130px; }
+.cmp-matrix th, .cmp-matrix td { text-align: center; min-width: 70px; }
+.cmp-matrix tbody th { text-align: left; }
+.cmp-grid th, .cmp-grid td { text-align: center; min-width: 64px; }
+.cmp-grid tbody th { text-align: left; }
+.cmp-blank { background: transparent; }
+.cmp-cell { all: unset; display: block; width: 100%; cursor: pointer; text-align: center; }
+.cmp-cell:focus-visible, .linkish:focus-visible { outline: 2px solid var(--accent); }
+.cmp-cell b { display: block; }
+.cmp-cell span { display: block; font-size: 11px; color: var(--muted); }
+.linkish { all: unset; cursor: pointer; text-decoration: underline; font-size: 12px; }
+.cmp-pairs, .cmp-flows { list-style: none; margin: 10px 0 0; padding: 0; }
+.cmp-pairs li { padding: 8px 0; border-top: 1px solid var(--rule); }
+.cmp-pair-hd { font-size: 13px; font-weight: bold; }
+.cmp-pair-hd a { text-decoration: none; }
+.cmp-pair-hd .linkish { font-weight: normal; margin-left: 6px; }
+.cmp-pref { display: grid; grid-template-columns: 170px minmax(0, 1fr) 170px; gap: 8px; align-items: center; margin-top: 4px; }
+.cmp-pref > span:last-child { text-align: right; }
+.s-a { background: var(--accent); } .s-b { background: var(--neu); }
+.cmp-flows li { display: grid; grid-template-columns: 210px minmax(0, 1fr) 36px 170px; gap: 8px; align-items: center; padding: 5px 0; border-top: 1px solid var(--rule); font-size: 13px; }
+.cmp-flow-name a { text-decoration: none; font-weight: bold; }
+.cmp-flow-bar { display: block; height: 8px; }
+.cmp-flow-bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.cmp-quotes { margin: 10px 0; padding: 10px 12px; background: var(--card); border: 1px solid var(--rule); border-radius: 4px; }
+.cmp-quotes h3 { margin: 0 0 6px; font-size: 13px; }
+@media (max-width: 640px) {
+  .cmp-pref { grid-template-columns: minmax(0, 1fr); }
+  .cmp-pref > span:last-child { text-align: left; }
+  .cmp-flows li { grid-template-columns: minmax(0, 1fr) 36px; }
+  .cmp-flow-bar { grid-column: 1 / -1; order: 3; }
+  .cmp-flow-back { grid-column: 1 / -1; order: 4; }
+}

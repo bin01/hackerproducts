@@ -18,7 +18,8 @@ const items = listed.filter((p: any) => p.category === c.slug && !p.family);
   <p class="lede">What HN commenters recommend, ranked by distinct recommenders. Under each: what people praise most and the most common caveat, or the strongest quote where there is no summary yet.</p>
   {c.slug === "ai-models" && <>
     <p class="lede">One row per model family, counting each person once across its tiers and versions.</p>
-    <a class="vteaser" href="/models/versions/"><b>Sentiment by version</b> <span class="muted">how HN received each release, latest first, across every model →</span></a>
+    <a class="vteaser" href="/models/compare/"><b>Compare all models</b> <span class="muted">best for each job, head to head, who's switching →</span></a>
+    <a class="vteaser" href="/models/versions/"><b>Sentiment by version</b> <span class="muted">how HN received each release, latest first →</span></a>
   </>}
   <ListTools title={c.name} items={items} json={`/export/category-${c.slug}.json`} />
   <ProductList items={items} showCategory={false} />
