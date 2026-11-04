@@ -22,7 +22,7 @@ MISS = ROOT / "data" / "icons_missing.json"
 SHEET = ROOT / "data" / "logo_contact_sheet.png"
 COMMONS = "https://commons.wikimedia.org/wiki/Special:FilePath/{}?width=128"
 
-SITE = {"pi": "pi.dev", "glm": "z.ai", "kimi": "www.kimi.com", "vim": "www.vim.org", "htmx": "htmx.org", "codeberg": "codeberg.org",
+SITE = {"glm": "z.ai", "kimi": "www.kimi.com", "vim": "www.vim.org", "htmx": "htmx.org", "codeberg": "codeberg.org",
         "handy": "handy.computer", "cachyos": "cachyos.org", "f-droid": "f-droid.org", "gitea": "about.gitea.com", "astro": "astro.build",
         "anki": "apps.ankiweb.net", "openstreetmap": "www.openstreetmap.org", "radicle": "radicle.dev", "polars": "pola.rs",
         "vlc-media-player": "www.videolan.org", "vite": "vite.dev", "kitty": "sw.kovidgoyal.net/kitty/",
@@ -120,6 +120,14 @@ def from_site(client, host):
     return ordered
 
 
+def pi_logo(client):
+    """Pi's favicon is a monochrome version that renders badly; its site's own header uses the coloured mark."""
+    html = client.get("https://pi.dev/").text
+    svg = re.search(r'<svg class="pi-logo-mark".*?</svg>', html, re.S)[0].replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ', 1)
+    png, _ = normalize(svg.encode())
+    (OUT / "pi.ico").write_bytes(png)
+
+
 def main():
     cat = json.loads((ROOT / "site" / "src" / "data" / "catalog.json").read_text())
     added, failed = {}, {}
@@ -150,6 +158,9 @@ def main():
                 break
             else:
                 failed[slug] = "no usable image"
+    with httpx.Client(headers={"User-Agent": "HackerProductsLogoFetch/1.0 (https://hackerproducts.pages.dev)"}, follow_redirects=True, timeout=20) as c:
+        pi_logo(c)
+        added["pi"] = ("https://pi.dev/ header", 0)
     # Parents and tiers: reuse the family's logo.
     fam = {p["slug"]: p["family"] for p in cat["products"] if p.get("family") and p["listed"]}
     for child, parent in {**fam, **PARENT}.items():
